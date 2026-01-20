@@ -139,17 +139,16 @@ if archivo is not None:
             try:
                 # 1. PREPARAR LA IMAGEN (Convertir a Base64)
                 archivo.seek(0)
-                # Codificamos los bytes de la imagen a una cadena de texto Base64
                 image_base64 = base64.b64encode(archivo.getvalue()).decode('utf-8')
                 
-                # 2. CREAR EL PAQUETE JSON (Lo que n8n espera leer)
+                # 2. CREAR EL PAQUETE JSON
                 payload = {
-                    "image": image_base64,        # Esto llenará {{ $json.body.image }}
-                    "filename": archivo.name,     # Esto llenará {{ $json.body.filename }}
+                    "image": image_base64,
+                    "filename": archivo.name,
                     "mode": "standard"
                 }
 
-                # 3. ENVIAR A N8N (Nota que usamos json=payload, NO files=...)
+                # 3. ENVIAR A N8N
                 response = requests.post(
                     BACKEND_ENDPOINT,
                     json=payload, 
@@ -163,6 +162,47 @@ if archivo is not None:
                     
                     try:
                         result = response.json()
+
+                        # -----------------------------
+                        # RESULTADOS
+                        # -----------------------------
+                        # ESTA LÍNEA DABA EL ERROR ANTES, AHORA ESTÁ ALINEADA:
+                        st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
+
+                        # IMAGEN PROCESADA
+                        if "imagen_procesada" in result:
+                            img_data = result["imagen_procesada"]
+                            if "," in img_data:
+                                img_data = img_data.split(",")[1]
+                                
+                            st.image(
+                                base64.b64decode(img_data),
+                                caption="Resultado automático",
+                                use_container_width=True
+                            )
+
+                        # DESCRIPCIÓN
+                        if "descripcion" in result:
+                            st.subheader("Descripción preliminar")
+                            st.write(result["descripcion"])
+
+                        # PDF
+                        if "pdf" in result:
+                            pdf_data = result["pdf"]
+                            if "," in pdf_data:
+                                pdf_data = pdf_data.split(",")[1]
+
+                            st.download_button(
+                                "Descargar informe técnico (PDF)",
+                                data=base64.b64decode(pdf_data),
+                                file_name="reporte_sismico.pdf",
+                                mime="application/pdf"
+                            )
+                    except ValueError:
+                        st.warning("n8n respondió (200) pero no devolvió JSON válido.")
+
+            except Exception as e:
+                st.error(f"Fallo de conexión: {str(e)}")
 
                         # -----------------------------
                         # RESULTADOS
