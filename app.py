@@ -5,32 +5,35 @@ import requests
 import os
 
 # --------------------------------------------------
-# CONFIGURACIÓN GENERAL
+# 1. CONFIGURACIÓN GENERAL
 # --------------------------------------------------
 st.set_page_config(
     page_title="GeoSismicIA – UCE",
     layout="wide"
 )
 
-BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
+# URL DE TU WEBHOOK EN N8N (Producción)
+BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook/seismic-upload"
 
 # --------------------------------------------------
-# FUNCIONES AUXILIARES
+# 2. FUNCIONES AUXILIARES
 # --------------------------------------------------
 def img_to_base64(path):
+    """Convierte una imagen local a base64 para mostrarla en HTML."""
     if not os.path.exists(path):
         return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 # --------------------------------------------------
-# CARGA DE LOGOS (Manejo de errores si no existen)
+# 3. CARGA DE LOGOS
 # --------------------------------------------------
+# Asegúrate de que la carpeta 'assets' exista junto a este archivo
 uce_b64 = img_to_base64("assets/uce.jpg")
 geo_b64 = img_to_base64("assets/geologia.jpg")
 
 # --------------------------------------------------
-# ESTILOS
+# 4. ESTILOS CSS
 # --------------------------------------------------
 st.markdown("""
 <style>
@@ -66,7 +69,7 @@ body { font-family: Arial; }
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# ENCABEZADO
+# 5. ENCABEZADO INSTITUCIONAL
 # --------------------------------------------------
 c1, c2, c3 = st.columns([1, 6, 1])
 
@@ -97,20 +100,20 @@ with c3:
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# DESCRIPCIÓN
+# 6. DESCRIPCIÓN
 # --------------------------------------------------
 st.markdown("""
 <div class="bloque">
 <b>GeoSismicIA</b> es una herramienta académica para el
 <b>análisis automático de líneas sísmicas</b>.
 <br><br>
-El sistema procesa la imagen de forma autónoma y entrega
+El sistema procesa la imagen de forma autónoma (N8N + IA Agéntica) y entrega
 resultados preliminares para apoyo didáctico.
 </div>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# INPUT DE USUARIO
+# 7. INPUT DE USUARIO (SUBIDA DE ARCHIVO)
 # --------------------------------------------------
 st.markdown("<div class='titulo_azul'>Carga de línea sísmica</div>", unsafe_allow_html=True)
 st.markdown("<div class='bloque'>", unsafe_allow_html=True)
@@ -123,168 +126,100 @@ archivo = st.file_uploader(
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# VISTA PREVIA
+# 8. VISTA PREVIA
 # --------------------------------------------------
 if archivo is not None:
+    # Mostramos la imagen cargada
     img = Image.open(archivo).convert("RGB")
     st.subheader("Vista previa de la línea sísmica")
     st.image(img, use_container_width=True)
 
 # --------------------------------------------------
-# LÓGICA DE ENVÍO Y PROCESAMIENTO
+# 9. LÓGICA DE ENVÍO Y PROCESAMIENTO
 # --------------------------------------------------
 if archivo is not None:
     if st.button("Analizar línea sísmica"):
-        with st.spinner("Analizando línea sísmica..."):
+        with st.spinner("Conectando con el Orquestador N8N..."):
             try:
-                # 1. PREPARAR LA IMAGEN (Convertir a Base64)
+                # A. PREPARAR LA IMAGEN (Convertir a Base64)
                 archivo.seek(0)
-                image_base64 = base64.b64encode(archivo.getvalue()).decode('utf-8')
+                image_bytes = archivo.getvalue()
+                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                 
-                # 2. CREAR EL PAQUETE JSON
+                # B. CREAR EL PAQUETE JSON (Payload)
+                # Esto es lo que leerá n8n con {{ $json.body.image }}
                 payload = {
                     "image": image_base64,
                     "filename": archivo.name,
                     "mode": "standard"
                 }
 
-                # 3. ENVIAR A N8N
+                # C. ENVIAR A N8N (POST request)
+                # Usamos json=payload para asegurar el formato correcto
                 response = requests.post(
                     BACKEND_ENDPOINT,
                     json=payload, 
-                    timeout=120
+                    timeout=180  # 3 minutos de espera máx.
                 )
 
+                # D. VALIDAR RESPUESTA HTTP
                 if response.status_code != 200:
-                    st.error(f"Error en el servidor (n8n): {response.status_code}")
+                    st.error(f"Error en el servidor (n8n): {response.status_code}. Verifica que el workflow esté activo.")
                 else:
-                    st.success("Análisis completado")
+                    st.success("Análisis completado exitosamente.")
                     
                     try:
+                        # E. PROCESAR RESPUESTA JSON DE N8N
                         result = response.json()
 
-                        # -----------------------------
-                        # RESULTADOS
-                        # -----------------------------
-                        # ESTA LÍNEA DABA EL ERROR ANTES, AHORA ESTÁ ALINEADA:
                         st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
+                        st.write("---")
 
-                        # IMAGEN PROCESADA
+                        # 1. MOSTRAR IMAGEN PROCESADA (Si existe)
                         if "imagen_procesada" in result:
                             img_data = result["imagen_procesada"]
+                            # Limpieza defensiva por si viene con header data:image
                             if "," in img_data:
                                 img_data = img_data.split(",")[1]
                                 
+                            st.subheader("Interpretación de Sismofacies")
                             st.image(
                                 base64.b64decode(img_data),
-                                caption="Resultado automático",
+                                caption="Resultado generado por IA",
                                 use_container_width=True
                             )
 
-                        # DESCRIPCIÓN
+                        # 2. MOSTRAR DESCRIPCIÓN (Si existe)
                         if "descripcion" in result:
-                            st.subheader("Descripción preliminar")
-                            st.write(result["descripcion"])
+                            st.subheader("Informe Técnico Preliminar")
+                            st.info(result["descripcion"])
 
-                        # PDF
+                        # 3. BOTÓN DE DESCARGA PDF (Si existe)
                         if "pdf" in result:
                             pdf_data = result["pdf"]
                             if "," in pdf_data:
                                 pdf_data = pdf_data.split(",")[1]
 
                             st.download_button(
-                                "Descargar informe técnico (PDF)",
+                                label="📥 Descargar Informe Completo (PDF)",
                                 data=base64.b64decode(pdf_data),
-                                file_name="reporte_sismico.pdf",
+                                file_name="reporte_sismico_final.pdf",
                                 mime="application/pdf"
                             )
+
                     except ValueError:
-                        st.warning("n8n respondió (200) pero no devolvió JSON válido.")
+                        st.warning("El servidor n8n respondió (200 OK) pero no envió un JSON válido. Revisa el nodo final 'Respond to Webhook'.")
 
             except Exception as e:
-                st.error(f"Fallo de conexión: {str(e)}")
-
-                        # -----------------------------
-                        # RESULTADOS
-                        # -----------------------------
-                        st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
-
-                        # IMAGEN PROCESADA
-                        if "imagen_procesada" in result:
-                            # A veces n8n devuelve la imagen con encabezado "data:image...", lo limpiamos si es necesario
-                            img_data = result["imagen_procesada"]
-                            if "," in img_data:
-                                img_data = img_data.split(",")[1]
-                                
-                            st.image(
-                                base64.b64decode(img_data),
-                                caption="Resultado automático",
-                                use_container_width=True
-                            )
-
-                        # DESCRIPCIÓN
-                        if "descripcion" in result:
-                            st.subheader("Descripción preliminar")
-                            st.write(result["descripcion"])
-
-                        # PDF
-                        if "pdf" in result:
-                            pdf_data = result["pdf"]
-                            # Limpieza por si viene con encabezado base64
-                            if "," in pdf_data:
-                                pdf_data = pdf_data.split(",")[1]
-
-                            st.download_button(
-                                "Descargar informe técnico (PDF)",
-                                data=base64.b64decode(pdf_data),
-                                file_name="reporte_sismico.pdf",
-                                mime="application/pdf"
-                            )
-                    except ValueError:
-                        st.warning("n8n respondió (200) pero no devolvió JSON válido. Revisa el nodo 'Respond to Webhook'.")
-
-            except Exception as e:
-                st.error(f"Fallo de conexión: {str(e)}")
-
-                        # -----------------------------
-                        # RESULTADOS
-                        # -----------------------------
-                        st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
-
-                        # IMAGEN PROCESADA
-                        if "imagen_procesada" in result:
-                            st.image(
-                                base64.b64decode(result["imagen_procesada"]),
-                                caption="Resultado automático",
-                                use_container_width=True
-                            )
-
-                        # DESCRIPCIÓN
-                        if "descripcion" in result:
-                            st.subheader("Descripción preliminar")
-                            st.write(result["descripcion"])
-
-                        # PDF
-                        if "pdf" in result:
-                            st.download_button(
-                                "Descargar informe técnico (PDF)",
-                                data=base64.b64decode(result["pdf"]),
-                                file_name="reporte_sismico.pdf",
-                                mime="application/pdf"
-                            )
-                    except ValueError:
-                        st.warning("n8n respondió correctamente (200) pero no devolvió JSON válido. Revisa el nodo final 'Respond to Webhook' en n8n.")
-
-            except Exception as e:
-                st.error(f"Fallo de conexión con n8n: {str(e)}")
+                st.error(f"Fallo crítico de conexión: {str(e)}")
 
 # --------------------------------------------------
-# FOOTER
+# 10. PIE DE PÁGINA
 # --------------------------------------------------
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 st.markdown("""
 <div class="bloque">
 <b>Enfoque académico</b><br>
-Aplicación diseñada como apoyo didáctico para estudiantes de Geología.
+Aplicación diseñada como tesis de grado - Universidad Central del Ecuador.
 </div>
 """, unsafe_allow_html=True)
