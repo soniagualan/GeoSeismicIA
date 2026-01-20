@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # URL DE TU WEBHOOK EN N8N (Producción)
-BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook/seismic-upload"
+BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
 # 2. FUNCIONES AUXILIARES
