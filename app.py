@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook/seismic-upload"
+BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
 # FUNCIONES AUXILIARES
