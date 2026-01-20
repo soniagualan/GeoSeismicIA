@@ -198,5 +198,3 @@ st.markdown("""
 Aplicación diseñada como apoyo didáctico para estudiantes de Geología.
 </div>
 """, unsafe_allow_html=True)
-
-streamlit run streamlit/app.py
