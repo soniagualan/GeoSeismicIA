@@ -3,6 +3,13 @@ from PIL import Image
 import base64
 import requests
 import os
+from pathlib import Path
+from datetime import datetime
+
+# --- LIBRERÍAS PARA PDF ---
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
 # --------------------------------------------------
 # 1. CONFIGURACIÓN GENERAL
@@ -12,28 +19,149 @@ st.set_page_config(
     layout="wide"
 )
 
-# URL DE TU WEBHOOK EN N8N (Producción)
+# URL DE TU WEBHOOK EN N8N
+# Asegúrate de que esta sea la URL correcta (Test o Producción)
 BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
-# 2. FUNCIONES AUXILIARES
+# 2. FUNCIONES DE GENERACIÓN DE PDF
+# --------------------------------------------------
+def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_original_path, img_resultado_path, texto):
+    """
+    Genera un PDF con el reporte técnico usando ReportLab.
+    """
+    out_path = str(out_path)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+    c = canvas.Canvas(out_path, pagesize=A4)
+    W, H = A4
+    M = 40  # margen
+
+    # --- Helpers internos ---
+    def draw_logo(path, x, y_top, size=70):
+        p = Path(path)
+        if p.exists():
+            try:
+                c.drawImage(ImageReader(str(p)), x, y_top - size, width=size, height=size, mask="auto")
+            except Exception:
+                pass # Si falla el logo, no detiene el reporte
+
+    def draw_title_center(text, y, font="Helvetica-Bold", size=12):
+        c.setFont(font, size)
+        c.drawCentredString(W / 2, y, text)
+
+    def draw_line(y):
+        c.line(M, y, W - M, y)
+
+    def draw_wrapped_text(x, y, text, max_width_chars=110, line_h=12, font="Helvetica", size=10):
+        c.setFont(font, size)
+        yy = y
+        # Limpieza básica de texto
+        text_safe = str(text) if text else "Sin descripción."
+        
+        for paragraph in text_safe.split("\n"):
+            paragraph = paragraph.strip()
+            if not paragraph:
+                yy -= line_h
+                continue
+
+            words = paragraph.split()
+            line = ""
+            for w in words:
+                test = (line + " " + w).strip()
+                if len(test) <= max_width_chars:
+                    line = test
+                else:
+                    c.drawString(x, yy, line)
+                    yy -= line_h
+                    line = w
+            if line:
+                c.drawString(x, yy, line)
+                yy -= line_h
+            yy -= 4
+        return yy
+
+    def draw_image_fit(path, x, y_top, max_w, max_h):
+        p = Path(path)
+        if not p.exists():
+            c.setFont("Helvetica-Oblique", 9)
+            c.drawString(x, y_top - 12, f"[Imagen no disponible: {p.name}]")
+            return y_top - 20
+
+        try:
+            img = ImageReader(str(p))
+            iw, ih = img.getSize()
+            scale = min(max_w / iw, max_h / ih)
+            nw, nh = iw * scale, ih * scale
+            c.drawImage(img, x + (max_w - nw) / 2, y_top - nh, width=nw, height=nh, mask="auto")
+            return y_top - nh
+        except Exception as e:
+            c.drawString(x, y_top - 12, f"[Error cargando imagen]")
+            return y_top - 20
+
+    # --- Encabezado ---
+    y = H - M
+    
+    # Dibuja logos si existen
+    draw_logo(logo_left_path, M, y, 70)
+    draw_logo(logo_right_path, W - M - 70, y, 70)
+
+    draw_title_center("Universidad Central del Ecuador", y - 20, "Helvetica-Bold", 12)
+    draw_title_center("Carrera de Geología", y - 38, "Helvetica", 11)
+    draw_title_center("GeoSismicIA", y - 58, "Helvetica-Bold", 12)
+    draw_title_center(titulo_reporte, y - 78, "Helvetica-Bold", 12)
+
+    fecha_str = datetime.now().strftime("%d/%m/%Y")
+    draw_title_center(fecha_str, y - 95, "Helvetica", 10)
+
+    draw_line(y - 110)
+
+    # --- Contenido ---
+    y = y - 130
+
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(M, y, "1) Sección sísmica original")
+    y -= 12
+    y = draw_image_fit(img_original_path, M, y, W - 2 * M, 200) - 18
+
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(M, y, "2) Interpretación de Sismofacies (IA)")
+    y -= 12
+    y = draw_image_fit(img_resultado_path, M, y, W - 2 * M, 200) - 18
+
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(M, y, "3) Descripción de hallazgos")
+    y -= 14
+    y = draw_wrapped_text(M, y, texto, max_width_chars=100, line_h=12, font="Helvetica", size=10)
+
+    # --- Pie ---
+    c.setFont("Helvetica-Oblique", 9)
+    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSismicIA" - Tesis UCE')
+
+    c.showPage()
+    c.save()
+
+# --------------------------------------------------
+# 3. FUNCIONES AUXILIARES
 # --------------------------------------------------
 def img_to_base64(path):
-    """Convierte una imagen local a base64 para mostrarla en HTML."""
     if not os.path.exists(path):
         return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 # --------------------------------------------------
-# 3. CARGA DE LOGOS
+# 4. CARGA DE LOGOS
 # --------------------------------------------------
-# Asegúrate de que la carpeta 'assets' exista junto a este archivo
-uce_b64 = img_to_base64("assets/uce.jpg")
-geo_b64 = img_to_base64("assets/geologia.jpg")
+# Rutas a los assets (Asegúrate de subirlos a tu GitHub en la carpeta 'assets')
+LOGO_UCE_PATH = "assets/uce.jpg"
+LOGO_GEO_PATH = "assets/geologia.jpg"
+
+uce_b64 = img_to_base64(LOGO_UCE_PATH)
+geo_b64 = img_to_base64(LOGO_GEO_PATH)
 
 # --------------------------------------------------
-# 4. ESTILOS CSS
+# 5. ESTILOS CSS
 # --------------------------------------------------
 st.markdown("""
 <style>
@@ -61,24 +189,17 @@ body { font-family: Arial; }
     border-radius:10px;
     font-weight:bold;
 }
-.small_note {
-    font-size: 13px;
-    color: #334155;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# 5. ENCABEZADO INSTITUCIONAL
+# 6. ENCABEZADO INSTITUCIONAL
 # --------------------------------------------------
 c1, c2, c3 = st.columns([1, 6, 1])
 
 with c1:
     if geo_b64:
-        st.markdown(
-            f"<img src='data:image/jpg;base64,{geo_b64}' width='110'>",
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<img src='data:image/jpg;base64,{geo_b64}' width='110'>", unsafe_allow_html=True)
 
 with c2:
     st.markdown("""
@@ -92,129 +213,151 @@ with c2:
 
 with c3:
     if uce_b64:
-        st.markdown(
-            f"<img src='data:image/jpg;base64,{uce_b64}' width='110' style='float:right'>",
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<img src='data:image/jpg;base64,{uce_b64}' width='110' style='float:right'>", unsafe_allow_html=True)
 
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# 6. DESCRIPCIÓN
+# 7. DESCRIPCIÓN
 # --------------------------------------------------
 st.markdown("""
 <div class="bloque">
-<b>GeoSismicIA</b> es una herramienta académica para el
-<b>análisis automático de líneas sísmicas</b>.
+<b>GeoSismicIA</b> es una herramienta académica para el <b>análisis automático de líneas sísmicas</b>.
 <br><br>
-El sistema procesa la imagen de forma autónoma (N8N + IA Agéntica) y entrega
-resultados preliminares para apoyo didáctico.
+El sistema procesa la imagen de forma autónoma (N8N + IA Agéntica) y entrega resultados preliminares para apoyo didáctico.
 </div>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# 7. INPUT DE USUARIO (SUBIDA DE ARCHIVO)
+# 8. INPUT DE USUARIO
 # --------------------------------------------------
 st.markdown("<div class='titulo_azul'>Carga de línea sísmica</div>", unsafe_allow_html=True)
 st.markdown("<div class='bloque'>", unsafe_allow_html=True)
 
-archivo = st.file_uploader(
-    "Selecciona una línea sísmica (PNG / JPG)",
-    type=["png", "jpg", "jpeg"]
-)
+archivo = st.file_uploader("Selecciona una línea sísmica (PNG / JPG)", type=["png", "jpg", "jpeg"])
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# 8. VISTA PREVIA
+# 9. VISTA PREVIA
 # --------------------------------------------------
 if archivo is not None:
-    # Mostramos la imagen cargada
     img = Image.open(archivo).convert("RGB")
     st.subheader("Vista previa de la línea sísmica")
     st.image(img, use_container_width=True)
 
 # --------------------------------------------------
-# 9. LÓGICA DE ENVÍO Y PROCESAMIENTO
+# 10. LÓGICA DE ENVÍO, PROCESAMIENTO Y REPORTE
 # --------------------------------------------------
 if archivo is not None:
     if st.button("Analizar línea sísmica"):
-        with st.spinner("Conectando con el Orquestador N8N..."):
+        with st.spinner("Conectando con el Orquestador N8N y generando reporte..."):
             try:
-                # A. PREPARAR LA IMAGEN (Convertir a Base64)
+                # A. Preparar imagen
                 archivo.seek(0)
                 image_bytes = archivo.getvalue()
                 image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                 
-                # B. CREAR EL PAQUETE JSON (Payload)
-                # Esto es lo que leerá n8n con {{ $json.body.image }}
                 payload = {
                     "image": image_base64,
                     "filename": archivo.name,
                     "mode": "standard"
                 }
 
-                # C. ENVIAR A N8N (POST request)
-                # Usamos json=payload para asegurar el formato correcto
-                response = requests.post(
-                    BACKEND_ENDPOINT,
-                    json=payload, 
-                    timeout=180  # 3 minutos de espera máx.
-                )
+                # B. Enviar a N8N
+                response = requests.post(BACKEND_ENDPOINT, json=payload, timeout=180)
 
-                # D. VALIDAR RESPUESTA HTTP
                 if response.status_code != 200:
-                    st.error(f"Error en el servidor (n8n): {response.status_code}. Verifica que el workflow esté activo.")
+                    st.error(f"Error en el servidor (n8n): {response.status_code}.")
                 else:
                     st.success("Análisis completado exitosamente.")
                     
                     try:
-                        # E. PROCESAR RESPUESTA JSON DE N8N
                         result = response.json()
+                        
+                        # --- EXTRACCIÓN DE DATOS ---
+                        
+                        # 1. Texto del análisis
+                        # Intenta buscar 'technical_report', 'texto_analisis' o 'text'
+                        texto_analisis = result.get("technical_report") or result.get("texto_analisis") or result.get("text") or "Sin análisis."
 
+                        # 2. Imagen Procesada
+                        # Nota: Para que esto funcione, el nodo final de n8n debe devolver 
+                        # la imagen en base64 dentro del JSON (campo: 'imagen_procesada' o 'image')
+                        img_procesada_b64 = result.get("imagen_procesada") or result.get("image")
+                        
+                        # Limpieza del base64 si trae encabezado
+                        if img_procesada_b64 and "," in img_procesada_b64:
+                            img_procesada_b64 = img_procesada_b64.split(",")[1]
+
+                        # --- MOSTRAR RESULTADOS EN PANTALLA ---
+                        
                         st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
                         st.write("---")
 
-                        # 1. MOSTRAR IMAGEN PROCESADA (Si existe)
-                        if "imagen_procesada" in result:
-                            img_data = result["imagen_procesada"]
-                            # Limpieza defensiva por si viene con header data:image
-                            if "," in img_data:
-                                img_data = img_data.split(",")[1]
-                                
-                            st.subheader("Interpretación de Sismofacies")
-                            st.image(
-                                base64.b64decode(img_data),
-                                caption="Resultado generado por IA",
-                                use_container_width=True
-                            )
+                        # Columna izquierda: Imagen, Derecha: Texto
+                        col_res1, col_res2 = st.columns([1, 1])
 
-                        # 2. MOSTRAR DESCRIPCIÓN (Si existe)
-                        if "descripcion" in result:
-                            st.subheader("Informe Técnico Preliminar")
-                            st.info(result["descripcion"])
+                        # Guardamos imagenes temporalmente para el PDF
+                        temp_orig_path = "temp_original.png"
+                        temp_proc_path = "temp_procesada.png"
+                        pdf_path = "Reporte_GeoSismicIA.pdf"
 
-                        # 3. BOTÓN DE DESCARGA PDF (Si existe)
-                        if "pdf" in result:
-                            pdf_data = result["pdf"]
-                            if "," in pdf_data:
-                                pdf_data = pdf_data.split(",")[1]
+                        # Guardar original
+                        with open(temp_orig_path, "wb") as f:
+                            f.write(image_bytes)
 
-                            st.download_button(
-                                label="📥 Descargar Informe Completo (PDF)",
-                                data=base64.b64decode(pdf_data),
-                                file_name="reporte_sismico_final.pdf",
-                                mime="application/pdf"
-                            )
+                        with col_res1:
+                            st.subheader("Mapa de Sismofacies")
+                            if img_procesada_b64:
+                                img_data_bytes = base64.b64decode(img_procesada_b64)
+                                st.image(img_data_bytes, caption="Segmentación IA", use_container_width=True)
+                                # Guardar procesada para PDF
+                                with open(temp_proc_path, "wb") as f:
+                                    f.write(img_data_bytes)
+                            else:
+                                st.warning("No se recibió imagen procesada. Se usará la original en el reporte.")
+                                # Fallback: usar original como procesada
+                                with open(temp_proc_path, "wb") as f:
+                                    f.write(image_bytes)
+
+                        with col_res2:
+                            st.subheader("Interpretación Geológica")
+                            st.info(texto_analisis)
+
+                        # --- GENERACIÓN DEL PDF ---
+                        
+                        build_pdf(
+                            out_path=pdf_path,
+                            logo_left_path=LOGO_UCE_PATH,
+                            logo_right_path=LOGO_GEO_PATH,
+                            titulo_reporte="Análisis de Sismofacies",
+                            img_original_path=temp_orig_path,
+                            img_resultado_path=temp_proc_path,
+                            texto=texto_analisis
+                        )
+
+                        # --- BOTÓN DE DESCARGA ---
+                        if os.path.exists(pdf_path):
+                            with open(pdf_path, "rb") as pdf_file:
+                                pdf_bytes = pdf_file.read()
+                                st.download_button(
+                                    label="📄 Descargar Reporte PDF Oficial",
+                                    data=pdf_bytes,
+                                    file_name="Reporte_GeoSismicIA.pdf",
+                                    mime="application/pdf"
+                                )
 
                     except ValueError:
-                        st.warning("El servidor n8n respondió (200 OK) pero no envió un JSON válido. Revisa el nodo final 'Respond to Webhook'.")
+                        st.warning("El servidor respondió pero el formato no es JSON válido.")
+                    except Exception as e:
+                        st.error(f"Error procesando resultados: {str(e)}")
 
             except Exception as e:
-                st.error(f"Fallo crítico de conexión: {str(e)}")
+                st.error(f"Fallo de conexión: {str(e)}")
 
 # --------------------------------------------------
-# 10. PIE DE PÁGINA
+# 11. PIE DE PÁGINA
 # --------------------------------------------------
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 st.markdown("""
