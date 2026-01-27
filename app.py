@@ -277,17 +277,22 @@ if archivo is not None:
                     try:
                         result = response.json()
                         
-                        # --- EXTRACCIÓN DE DATOS ---
-                        
-                        # 1. Texto del análisis
-                        # Intenta buscar 'technical_report', 'texto_analisis' o 'text'
-                        texto_analisis = result.get("technical_report") or result.get("texto_analisis") or result.get("text") or "Sin análisis."
+                      # --- EXTRACCIÓN DE DATOS ---
 
-                        # 2. Imagen Procesada
-                        # Nota: Para que esto funcione, el nodo final de n8n debe devolver 
-                        # la imagen en base64 dentro del JSON (campo: 'imagen_procesada' o 'image')
-                        img_procesada_b64 = result.get("mask")
-                        
+                       #1. Texto del análisis (LLM)
+                         report = result.get("report", {})
+                         texto_analisis = (
+                         report.get("summary")
+                         or report.get("methodology")
+                         or "Sin análisis."
+                        )
+
+                        # 2. Imagen original (desde n8n)
+                        img_original_b64 = result.get("image_original")
+
+                        # 3. Imagen procesada (overlay)
+                        img_procesada_b64 = result.get("imagen_procesada")
+
                         # Limpieza del base64 si trae encabezado
                         if img_procesada_b64 and "," in img_procesada_b64:
                             img_procesada_b64 = img_procesada_b64.split(",")[1]
@@ -305,9 +310,14 @@ if archivo is not None:
                         temp_proc_path = "temp_procesada.png"
                         pdf_path = "Reporte_GeoSismicIA.pdf"
 
-                        # Guardar original
-                        with open(temp_orig_path, "wb") as f:
-                            f.write(image_bytes)
+                       # Guardar imagen original (preferir la que viene de n8n)
+                      if img_original_b64:
+                      with open(temp_orig_path, "wb") as f:
+                      f.write(base64.b64decode(img_original_b64))
+                      else:
+                      with open(temp_orig_path, "wb") as f:
+                      f.write(image_bytes)
+
 
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
