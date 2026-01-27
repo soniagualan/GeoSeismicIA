@@ -312,17 +312,22 @@ if archivo is not None:
                        # Guardar imagen original (preferir la que viene de n8n)
                         if img_original_b64:
                            with open(temp_orig_path, "wb") as f:
-                        f.write(base64.b64decode(img_original_b64))
+                               f.write(base64.b64decode(img_original_b64))
                         else:
                            with open(temp_orig_path, "wb") as f:
-                        f.write(image_bytes)
+                               f.write(image_bytes)
 
 
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
+                            
                             if img_procesada_b64:
                                 img_data_bytes = base64.b64decode(img_procesada_b64)
-                                st.image(img_data_bytes, caption="Segmentación IA", use_container_width=True)
+                                 st.image(
+                                     img_data_bytes, 
+                                     caption="Segmentación IA", 
+                                     use_container_width=True
+                                 )
                                 # Guardar procesada para PDF
                                 with open(temp_proc_path, "wb") as f:
                                     f.write(img_data_bytes)
