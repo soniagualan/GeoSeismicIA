@@ -287,11 +287,6 @@ if archivo is not None:
                         # Nota: Para que esto funcione, el nodo final de n8n debe devolver 
                         # la imagen en base64 dentro del JSON (campo: 'imagen_procesada' o 'image')
                         img_procesada_b64 = result.get("mask")
-                        if response["status"]== "ok" :
-                         mask = base64.b64decode(response["mask"])
-                         st.image(mask, caption="Mascara de sismofacies"")
-                         else:
-                         st.warning("No se encontro máscara")
                         
                         # Limpieza del base64 si trae encabezado
                         if img_procesada_b64 and "," in img_procesada_b64:
