@@ -3,6 +3,7 @@ from PIL import Image
 import base64
 import requests
 import os
+import io
 from pathlib import Path
 from datetime import datetime
 
@@ -151,6 +152,51 @@ def img_to_base64(path):
         return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
+import numpy as np
+
+def create_overlay_from_mask(image_pil, mask_pil):
+    """
+    Crea un overlay usando los COLORES ORIGINALES de la máscara (sin transparencia roja).
+    """
+    image_np = np.array(image_pil.convert("RGB"))
+    mask_np = np.array(mask_pil.convert("RGB"))
+
+    # Donde la máscara es negra, dejamos la imagen original
+    black_pixels = np.all(mask_np == [0, 0, 0], axis=-1)
+
+    overlay = image_np.copy()
+    overlay[~black_pixels] = mask_np[~black_pixels]
+
+    return Image.fromarray(overlay)
+def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
+    """
+    Crea un overlay respetando EXACTAMENTE los colores de la máscara.
+    alpha controla qué tanto se mezcla con la imagen original.
+    """
+
+    # Convertir a arrays
+    base = np.array(img_original).astype(np.float32)
+    mask = np.array(mask_img).astype(np.float32)
+
+    # Normalizar tamaños por seguridad
+    if base.shape != mask.shape:
+        mask = np.array(mask_img.resize(img_original.size)).astype(np.float32)
+
+    # Detectar píxeles de máscara (no negros)
+    mask_gray = mask.mean(axis=2)
+    mask_area = mask_gray > 5  # umbral bajo
+
+    # Copia base
+    overlay = base.copy()
+
+    # Mezcla SOLO donde hay máscara
+    overlay[mask_area] = (
+        (1 - alpha) * base[mask_area] +
+        alpha * mask[mask_area]
+    )
+
+    overlay = np.clip(overlay, 0, 255).astype(np.uint8)
+    return Image.fromarray(overlay)
 
 # --------------------------------------------------
 # 4. CARGA DE LOGOS
@@ -279,22 +325,27 @@ if archivo is not None:
                         
                       # --- EXTRACCIÓN DE DATOS ---
 
-                       #1. Texto del análisis (LLM)
-                        texto_analisis = (
+                       report = result.get("report", {})
+                        # 1. Texto del análisis
+                       texto_analisis = (
                            report.get("summary")
                            or report.get("methodology")
                            or "Sin análisis."
-                        )
+                       )
 
-                        # 2. Imagen original (desde n8n)
-                        img_original_b64 = result.get("image_original")
+                        # 2. Imagen original (base64 desde n8n)
+                       img_original_b64 = result.get("image_original")
 
-                        # 3. Imagen procesada (overlay)
-                        img_procesada_b64 = result.get("image_procesada")
+                        # 3. Máscara (base64 desde n8n)
+                       mask_b64 = result.get("mask")
 
                         # Limpieza del base64 si trae encabezado
-                        if img_procesada_b64 and "," in img_procesada_b64:
-                            img_procesada_b64 = img_procesada_b64.split(",")[1]
+                       if img_original_b64 and "," in img_original_b64:
+                          img_original_b64 = img_original_b64.split(",")[1]
+
+                       if mask_b64 and "," in mask_b64:
+                          mask_b64 = mask_b64.split(",")[1]
+
 
                         # --- MOSTRAR RESULTADOS EN PANTALLA ---
                         
@@ -316,26 +367,38 @@ if archivo is not None:
                         else:
                            with open(temp_orig_path, "wb") as f:
                                f.write(image_bytes)
-
-
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
-                            
-                            if img_procesada_b64:
-                                img_data_bytes = base64.b64decode(img_procesada_b64)
-                                st.image(
-                                     img_data_bytes, 
-                                     caption="Segmentación IA", 
-                                     use_container_width=True
-                                 )
-                                # Guardar procesada para PDF
-                                with open(temp_proc_path, "wb") as f:
-                                    f.write(img_data_bytes)
+
+                        # Cargar imagen original
+                            if img_original_b64:
+                                img_original = Image.open(
+                                    io.BytesIO(base64.b64decode(img_original_b64))
+                                ).convert("RGB")
                             else:
-                                st.warning("No se recibió imagen procesada. Se usará la original en el reporte.")
-                                # Fallback: usar original como procesada
-                                with open(temp_proc_path, "wb") as f:
-                                    f.write(image_bytes)
+                                img_original = Image.open(archivo).convert("RGB")
+
+                        # Cargar máscara
+                            if mask_b64:
+                                mask_img = Image.open(
+                                    io.BytesIO(base64.b64decode(mask_b64))
+                                ).convert("RGB")
+
+                        # Crear overlay usando colores reales de la máscara
+                                overlay_img = create_overlay_from_mask(img_original, mask_img)
+
+                                st.image(
+                                    overlay_img,
+                                    caption="Segmentación IA (overlay)",
+                                    use_container_width=True
+                                )
+
+                         # Guardar overlay para PDF
+                                overlay_img.save(temp_proc_path)
+
+                            else:
+                                st.warning("No se recibió máscara. Se usará la imagen original.")
+                                img_original.save(temp_proc_path)
 
                         with col_res2:
                             st.subheader("Interpretación Geológica")
