@@ -108,7 +108,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
 
     draw_title_center("Universidad Central del Ecuador", y - 20, "Helvetica-Bold", 12)
     draw_title_center("Carrera de Geología", y - 38, "Helvetica", 11)
-    draw_title_center("GeoSismicIA", y - 58, "Helvetica-Bold", 12)
+    draw_title_center("GeoSeismicAI", y - 58, "Helvetica-Bold", 12)
     draw_title_center(titulo_reporte, y - 78, "Helvetica-Bold", 12)
 
     fecha_str = datetime.now().strftime("%d/%m/%Y")
@@ -363,6 +363,6 @@ st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 st.markdown("""
 <div class="bloque">
 <b>Enfoque académico</b><br>
-Aplicación diseñada como tesis de grado - Universidad Central del Ecuador.
+Aplicación diseñada como trabajo final de Software Aplicado a Geología - Universidad Central del Ecuador.
 </div>
 """, unsafe_allow_html=True)
