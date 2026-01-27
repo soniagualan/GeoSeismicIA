@@ -281,9 +281,8 @@ if archivo is not None:
 
                        #1. Texto del análisis (LLM)
                         texto_analisis = (
-                           result.get("text")
-                           or result.get("summary")
-                           or result.get("methodology")
+                           report.get("summary")
+                           or report.get("methodology")
                            or "Sin análisis."
                         )
 
