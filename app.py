@@ -428,11 +428,10 @@ if archivo is not None:
                                     mime="application/pdf"
                                 )
 
-                    except ValueError:
-                        st.warning("El servidor respondió pero el formato no es JSON válido.")
-                    except Exception as e:
-                        st.error(f"Error procesando resultados: {str(e)}")
-
+            except ValueError:
+                 st.warning("El servidor respondió pero el formato no es JSON válido.")
+            except Exception as e:
+                 st.error(f"Error procesando resultados: {str(e)}")
             except Exception as e:
                 st.error(f"Fallo de conexión: {str(e)}")
 
