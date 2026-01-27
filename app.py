@@ -325,20 +325,21 @@ if archivo is not None:
                         
                       # --- EXTRACCIÓN DE DATOS ---
 
-                       report = result.get("report", {})
+                        report = result.get("report", {})
                         # 1. Texto del análisis
-                       texto_analisis = (
+                        texto_analisis = (
                            report.get("summary")
                            or report.get("methodology")
                            or "Sin análisis."
-                       )
+                        )
 
                         # 2. Imagen original (base64 desde n8n)
-                       img_original_b64 = result.get("image_original")
+                        img_original_b64 = result.get("image_original")
 
                         # 3. Máscara (base64 desde n8n)
-                       mask_b64 = result.get("mask")
-
+                        mask_b64 = result.get("mask")
+                    except ValueError:
+                        st.warning("El servidor respondió pero el formato no es JSON válido.")
                         # Limpieza del base64 si trae encabezado
                        if img_original_b64 and "," in img_original_b64:
                           img_original_b64 = img_original_b64.split(",")[1]
