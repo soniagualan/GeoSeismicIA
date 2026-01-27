@@ -410,7 +410,6 @@ if archivo is not None:
 
                     except ValueError:
                         st.warning("El servidor respondió pero el formato no es JSON válido.")
-
 # --------------------------------------------------
 # 11. PIE DE PÁGINA
 # --------------------------------------------------
