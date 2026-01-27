@@ -323,7 +323,7 @@ if archivo is not None:
                             
                             if img_procesada_b64:
                                 img_data_bytes = base64.b64decode(img_procesada_b64)
-                                 st.image(
+                                st.image(
                                      img_data_bytes, 
                                      caption="Segmentación IA", 
                                      use_container_width=True
