@@ -286,7 +286,7 @@ if archivo is not None:
                         # 2. Imagen Procesada
                         # Nota: Para que esto funcione, el nodo final de n8n debe devolver 
                         # la imagen en base64 dentro del JSON (campo: 'imagen_procesada' o 'image')
-                        img_procesada_b64 = result.get("imagen_procesada") or result.get("image")
+                        img_procesada_b64 = result.get("mask")
                         
                         # Limpieza del base64 si trae encabezado
                         if img_procesada_b64 and "," in img_procesada_b64:
