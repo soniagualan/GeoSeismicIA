@@ -395,7 +395,7 @@ if archivo is not None:
                        )
 
                          # Guardar overlay para PDF
-                        overlay_img.save(temp_proc_path)
+                       overlay_img.save(temp_proc_path)
 
                     else:
                         st.warning("No se recibió máscara. Se usará la imagen original.")
