@@ -341,17 +341,17 @@ if archivo is not None:
                     except ValueError:
                         st.warning("El servidor respondió pero el formato no es JSON válido.")
                         # Limpieza del base64 si trae encabezado
-                       if img_original_b64 and "," in img_original_b64:
-                          img_original_b64 = img_original_b64.split(",")[1]
+                    if img_original_b64 and "," in img_original_b64:
+                        img_original_b64 = img_original_b64.split(",")[1]
 
-                       if mask_b64 and "," in mask_b64:
-                          mask_b64 = mask_b64.split(",")[1]
+                    if mask_b64 and "," in mask_b64:
+                         mask_b64 = mask_b64.split(",")[1]
 
 
                         # --- MOSTRAR RESULTADOS EN PANTALLA ---
                         
-                        st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
-                        st.write("---")
+                       st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
+                       st.write("---")
 
                         # Columna izquierda: Imagen, Derecha: Texto
                         col_res1, col_res2 = st.columns([1, 1])
