@@ -350,16 +350,16 @@ if archivo is not None:
 
                         # --- MOSTRAR RESULTADOS EN PANTALLA ---
                         
-                       st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
-                       st.write("---")
+                    st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
+                    st.write("---")
 
                         # Columna izquierda: Imagen, Derecha: Texto
-                        col_res1, col_res2 = st.columns([1, 1])
+                    col_res1, col_res2 = st.columns([1, 1])
 
                         # Guardamos imagenes temporalmente para el PDF
-                        temp_orig_path = "temp_original.png"
-                        temp_proc_path = "temp_procesada.png"
-                        pdf_path = "Reporte_GeoSismicIA.pdf"
+                    temp_orig_path = "temp_original.png"
+                    temp_proc_path = "temp_procesada.png"
+                    pdf_path = "Reporte_GeoSismicIA.pdf"
 
                        # Guardar imagen original (preferir la que viene de n8n)
                         if img_original_b64:
