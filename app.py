@@ -21,7 +21,7 @@ st.set_page_config(
 
 # URL DE TU WEBHOOK EN N8N
 # Asegúrate de que esta sea la URL correcta (Test o Producción)
-BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook/seismic-upload"
+BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
 # 2. FUNCIONES DE GENERACIÓN DE PDF
