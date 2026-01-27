@@ -111,26 +111,28 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
     draw_title_center("GeoSeismicAI", y - 58, "Helvetica-Bold", 12)
     draw_title_center(titulo_reporte, y - 78, "Helvetica-Bold", 12)
 
-    fecha_str = datetime.now().strftime("%d/%m/%Y")
-    draw_title_center(fecha_str, y - 95, "Helvetica", 10)
+    # SE ELIMINÓ LA FECHA AQUÍ SEGÚN SOLICITUD
 
-    draw_line(y - 110)
+    draw_line(y - 95)
 
     # --- Contenido ---
-    y = y - 130
+    y = y - 115
 
+    # 1. Imagen Original (Sin modificar)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(M, y, "1) Sección sísmica original")
     y -= 12
     y = draw_image_fit(img_original_path, M, y, W - 2 * M, 200) - 18
 
+    # 2. Imagen Procesada (Interpretación visual)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(M, y, "2) Interpretación de Sismofacies (IA)")
     y -= 12
     y = draw_image_fit(img_resultado_path, M, y, W - 2 * M, 200) - 18
 
+    # 3. Interpretación (Texto)
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(M, y, "3) Descripción de hallazgos")
+    c.drawString(M, y, "3) Interpretación Geológica")
     y -= 14
     y = draw_wrapped_text(M, y, texto, max_width_chars=100, line_h=12, font="Helvetica", size=10)
 
