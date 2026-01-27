@@ -281,8 +281,9 @@ if archivo is not None:
 
                        #1. Texto del análisis (LLM)
                         texto_analisis = (
-                           report.get("summary")
-                           or report.get("methodology")
+                           result.get("text")
+                           or result.get("summary")
+                           or result.get("methodology")
                            or "Sin análisis."
                         )
 
@@ -290,7 +291,7 @@ if archivo is not None:
                         img_original_b64 = result.get("image_original")
 
                         # 3. Imagen procesada (overlay)
-                        img_procesada_b64 = result.get("imagen_procesada")
+                        img_procesada_b64 = result.get("image_procesada")
 
                         # Limpieza del base64 si trae encabezado
                         if img_procesada_b64 and "," in img_procesada_b64:
