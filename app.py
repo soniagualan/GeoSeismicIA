@@ -362,14 +362,14 @@ if archivo is not None:
                     pdf_path = "Reporte_GeoSismicIA.pdf"
 
                        # Guardar imagen original (preferir la que viene de n8n)
-                        if img_original_b64:
-                           with open(temp_orig_path, "wb") as f:
-                               f.write(base64.b64decode(img_original_b64))
-                        else:
-                           with open(temp_orig_path, "wb") as f:
-                               f.write(image_bytes)
-                        with col_res1:
-                            st.subheader("Mapa de Sismofacies")
+                   if img_original_b64:
+                      with open(temp_orig_path, "wb") as f:
+                         f.write(base64.b64decode(img_original_b64))
+                   else:
+                      with open(temp_orig_path, "wb") as f:
+                         f.write(image_bytes)
+                      with col_res1:
+                         st.subheader("Mapa de Sismofacies")
 
                         # Cargar imagen original
                             if img_original_b64:
