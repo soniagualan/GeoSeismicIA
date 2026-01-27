@@ -280,11 +280,10 @@ if archivo is not None:
                       # --- EXTRACCIÓN DE DATOS ---
 
                        #1. Texto del análisis (LLM)
-                         report = result.get("report", {})
-                         texto_analisis = (
-                         report.get("summary")
-                         or report.get("methodology")
-                         or "Sin análisis."
+                        texto_analisis = (
+                           report.get("summary")
+                           or report.get("methodology")
+                           or "Sin análisis."
                         )
 
                         # 2. Imagen original (desde n8n)
