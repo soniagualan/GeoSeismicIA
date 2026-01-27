@@ -154,20 +154,6 @@ def img_to_base64(path):
         return base64.b64encode(f.read()).decode()
 import numpy as np
 
-def create_overlay_from_mask(image_pil, mask_pil):
-    """
-    Crea un overlay usando los COLORES ORIGINALES de la máscara (sin transparencia roja).
-    """
-    image_np = np.array(image_pil.convert("RGB"))
-    mask_np = np.array(mask_pil.convert("RGB"))
-
-    # Donde la máscara es negra, dejamos la imagen original
-    black_pixels = np.all(mask_np == [0, 0, 0], axis=-1)
-
-    overlay = image_np.copy()
-    overlay[~black_pixels] = mask_np[~black_pixels]
-
-    return Image.fromarray(overlay)
 def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
     """
     Crea un overlay respetando EXACTAMENTE los colores de la máscara.
@@ -347,63 +333,73 @@ if archivo is not None:
                     if mask_b64 and "," in mask_b64:
                          mask_b64 = mask_b64.split(",")[1]
 
+                                                # --- MOSTRAR RESULTADOS EN PANTALLA ---
+                        st.markdown(
+                            "<div class='titulo_azul'>Resultados del análisis</div>",
+                            unsafe_allow_html=True
+                        )
+                        st.write("---")
 
-                        # --- MOSTRAR RESULTADOS EN PANTALLA ---
-                        
-                    st.markdown("<div class='titulo_azul'>Resultados del análisis</div>", unsafe_allow_html=True)
-                    st.write("---")
+                        col_res1, col_res2 = st.columns([1, 1])
 
-                        # Columna izquierda: Imagen, Derecha: Texto
-                    col_res1, col_res2 = st.columns([1, 1])
+                        # Rutas temporales
+                        temp_orig_path = "temp_original.png"
+                        temp_proc_path = "temp_procesada.png"
+                        pdf_path = "Reporte_GeoSismicIA.pdf"
 
-                        # Guardamos imagenes temporalmente para el PDF
-                    temp_orig_path = "temp_original.png"
-                    temp_proc_path = "temp_procesada.png"
-                    pdf_path = "Reporte_GeoSismicIA.pdf"
+                        # ===============================
+                        # COLUMNA 1 — IMÁGENES
+                        # ===============================
+                        with col_res1:
+                            st.subheader("Mapa de Sismofacies")
 
-                       # Guardar imagen original (preferir la que viene de n8n)
-                    if img_original_b64:
-                      with open(temp_orig_path, "wb") as f:
-                         f.write(base64.b64decode(img_original_b64))
-                    else:
-                      with open(temp_orig_path, "wb") as f:
-                         f.write(image_bytes)
-                      with col_res1:
-                         st.subheader("Mapa de Sismofacies")
+                            # Imagen original
+                            if img_original_b64:
+                                img_original = Image.open(
+                                    io.BytesIO(
+                                        base64.b64decode(img_original_b64)
+                                    )
+                                ).convert("RGB")
+                            else:
+                                img_original = Image.open(archivo).convert("RGB")
 
-                        # Cargar imagen original
-                    if img_original_b64:
-                       img_original = Image.open(
-                          io.BytesIO(base64.b64decode(img_original_b64))
-                       ).convert("RGB")
-                    else:
-                       img_original = Image.open(archivo).convert("RGB")
+                            img_original.save(temp_orig_path)
 
-                        # Cargar máscara
-                    if mask_b64:
-                       mask_img = Image.open(
-                          io.BytesIO(base64.b64decode(mask_b64))
-                       ).convert("RGB")
+                            # Máscara
+                            if mask_b64:
+                                mask_img = Image.open(
+                                    io.BytesIO(
+                                        base64.b64decode(mask_b64)
+                                    )
+                                ).convert("RGB")
 
-                        # Crear overlay usando colores reales de la máscara
-                       overlay_img = create_overlay_from_mask(img_original, mask_img)
+                                overlay_img = create_overlay_from_mask(
+                                    img_original,
+                                    mask_img
+                                )
 
-                       st.image(
-                       overlay_img,
-                       caption="Segmentación IA (overlay)",
-                       use_container_width=True
-                       )
+                                st.image(
+                                    overlay_img,
+                                    caption="Segmentación IA (overlay)",
+                                    use_container_width=True
+                                )
 
-                         # Guardar overlay para PDF
-                       overlay_img.save(temp_proc_path)
+                                overlay_img.save(temp_proc_path)
 
-                    else:
-                        st.warning("No se recibió máscara. Se usará la imagen original.")
-                        img_original.save(temp_proc_path)
+                            else:
+                                st.warning(
+                                    "No se recibió máscara. Se usa la imagen original."
+                                )
+                                img_original.save(temp_proc_path)
 
+                        # ===============================
+                        # COLUMNA 2 — TEXTO
+                        # ===============================
                         with col_res2:
                             st.subheader("Interpretación Geológica")
                             st.info(texto_analisis)
+
+                    
 
                         # --- GENERACIÓN DEL PDF ---
                         
