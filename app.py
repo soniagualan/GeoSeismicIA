@@ -305,18 +305,17 @@ if archivo is not None:
                     st.error(f"Error en el servidor (n8n): {response.status_code}.")
                 else:
                     st.success("Análisis completado exitosamente.")
-                    
-                    try:
-                        result = response.json()
-                        
-                      # --- EXTRACCIÓN DE DATOS ---
+                                        
+                    try: result = response.json()
 
+                        # --- EXTRACCIÓN DE DATOS ---
                         report = result.get("report", {})
+
                         # 1. Texto del análisis
                         texto_analisis = (
-                           report.get("summary")
-                           or report.get("methodology")
-                           or "Sin análisis."
+                            report.get("summary")
+                            or report.get("methodology")
+                            or "Sin análisis."
                         )
 
                         # 2. Imagen original (base64 desde n8n)
@@ -324,16 +323,15 @@ if archivo is not None:
 
                         # 3. Máscara (base64 desde n8n)
                         mask_b64 = result.get("mask")
-                    except ValueError:
-                        st.warning("El servidor respondió pero el formato no es JSON válido.")
-                        # Limpieza del base64 si trae encabezado
-                    if img_original_b64 and "," in img_original_b64:
-                        img_original_b64 = img_original_b64.split(",")[1]
 
-                    if mask_b64 and "," in mask_b64:
-                         mask_b64 = mask_b64.split(",")[1]
+                        # --- LIMPIEZA BASE64 ---
+                        if img_original_b64 and "," in img_original_b64:
+                            img_original_b64 = img_original_b64.split(",")[1]
 
-                                                # --- MOSTRAR RESULTADOS EN PANTALLA ---
+                        if mask_b64 and "," in mask_b64:
+                            mask_b64 = mask_b64.split(",")[1]
+
+                        # --- MOSTRAR RESULTADOS EN PANTALLA ---
                         st.markdown(
                             "<div class='titulo_azul'>Resultados del análisis</div>",
                             unsafe_allow_html=True
@@ -342,7 +340,6 @@ if archivo is not None:
 
                         col_res1, col_res2 = st.columns([1, 1])
 
-                        # Rutas temporales
                         temp_orig_path = "temp_original.png"
                         temp_proc_path = "temp_procesada.png"
                         pdf_path = "Reporte_GeoSismicIA.pdf"
@@ -353,24 +350,18 @@ if archivo is not None:
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
 
-                            # Imagen original
                             if img_original_b64:
                                 img_original = Image.open(
-                                    io.BytesIO(
-                                        base64.b64decode(img_original_b64)
-                                    )
+                                    io.BytesIO(base64.b64decode(img_original_b64))
                                 ).convert("RGB")
                             else:
                                 img_original = Image.open(archivo).convert("RGB")
 
                             img_original.save(temp_orig_path)
 
-                            # Máscara
                             if mask_b64:
                                 mask_img = Image.open(
-                                    io.BytesIO(
-                                        base64.b64decode(mask_b64)
-                                    )
+                                    io.BytesIO(base64.b64decode(mask_b64))
                                 ).convert("RGB")
 
                                 overlay_img = create_overlay_from_mask(
@@ -385,11 +376,8 @@ if archivo is not None:
                                 )
 
                                 overlay_img.save(temp_proc_path)
-
                             else:
-                                st.warning(
-                                    "No se recibió máscara. Se usa la imagen original."
-                                )
+                                st.warning("No se recibió máscara. Se usa la imagen original.")
                                 img_original.save(temp_proc_path)
 
                         # ===============================
@@ -399,10 +387,7 @@ if archivo is not None:
                             st.subheader("Interpretación Geológica")
                             st.info(texto_analisis)
 
-                    
-
                         # --- GENERACIÓN DEL PDF ---
-                        
                         build_pdf(
                             out_path=pdf_path,
                             logo_left_path=LOGO_UCE_PATH,
@@ -413,23 +398,18 @@ if archivo is not None:
                             texto=texto_analisis
                         )
 
-                        # --- BOTÓN DE DESCARGA ---
                         if os.path.exists(pdf_path):
                             with open(pdf_path, "rb") as pdf_file:
-                                pdf_bytes = pdf_file.read()
                                 st.download_button(
                                     label="📄 Descargar Reporte PDF Oficial",
-                                    data=pdf_bytes,
+                                    data=pdf_file.read(),
                                     file_name="Reporte_GeoSismicIA.pdf",
                                     mime="application/pdf"
                                 )
 
-            except ValueError:
-                 st.warning("El servidor respondió pero el formato no es JSON válido.")
-            except Exception as e:
-                 st.error(f"Error procesando resultados: {str(e)}")
-            except Exception as e:
-                st.error(f"Fallo de conexión: {str(e)}")
+                    except ValueError:
+                        st.warning("El servidor respondió pero el formato no es JSON válido.")
+
 
 # --------------------------------------------------
 # 11. PIE DE PÁGINA
