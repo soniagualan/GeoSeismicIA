@@ -372,34 +372,34 @@ if archivo is not None:
                          st.subheader("Mapa de Sismofacies")
 
                         # Cargar imagen original
-                            if img_original_b64:
-                                img_original = Image.open(
-                                    io.BytesIO(base64.b64decode(img_original_b64))
-                                ).convert("RGB")
-                            else:
-                                img_original = Image.open(archivo).convert("RGB")
+                    if img_original_b64:
+                       img_original = Image.open(
+                          io.BytesIO(base64.b64decode(img_original_b64))
+                       ).convert("RGB")
+                    else:
+                       img_original = Image.open(archivo).convert("RGB")
 
                         # Cargar máscara
-                            if mask_b64:
-                                mask_img = Image.open(
-                                    io.BytesIO(base64.b64decode(mask_b64))
-                                ).convert("RGB")
+                    if mask_b64:
+                       mask_img = Image.open(
+                          io.BytesIO(base64.b64decode(mask_b64))
+                       ).convert("RGB")
 
                         # Crear overlay usando colores reales de la máscara
-                                overlay_img = create_overlay_from_mask(img_original, mask_img)
+                       overlay_img = create_overlay_from_mask(img_original, mask_img)
 
-                                st.image(
-                                    overlay_img,
-                                    caption="Segmentación IA (overlay)",
-                                    use_container_width=True
-                                )
+                       st.image(
+                       overlay_img,
+                       caption="Segmentación IA (overlay)",
+                       use_container_width=True
+                       )
 
                          # Guardar overlay para PDF
-                                overlay_img.save(temp_proc_path)
+                        overlay_img.save(temp_proc_path)
 
-                            else:
-                                st.warning("No se recibió máscara. Se usará la imagen original.")
-                                img_original.save(temp_proc_path)
+                    else:
+                        st.warning("No se recibió máscara. Se usará la imagen original.")
+                        img_original.save(temp_proc_path)
 
                         with col_res2:
                             st.subheader("Interpretación Geológica")
