@@ -4,6 +4,7 @@ import base64
 import requests
 import os
 import io
+import numpy as np  # Asegúrate de tener numpy instalado
 from pathlib import Path
 from datetime import datetime
 
@@ -21,125 +22,164 @@ st.set_page_config(
 )
 
 # URL DE TU WEBHOOK EN N8N
-# Asegúrate de que esta sea la URL correcta (Test o Producción)
 BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
-# 2. FUNCIONES DE GENERACIÓN DE PDF
+# 2. FUNCIONES DE GENERACIÓN DE PDF (MODIFICADO PARA PAGINACIÓN)
 # --------------------------------------------------
 def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_original_path, img_resultado_path, texto):
     """
-    Genera un PDF con el reporte técnico usando ReportLab.
+    Genera un PDF multipágina. Si el contenido excede una hoja, crea una nueva automáticamente.
     """
     out_path = str(out_path)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
     c = canvas.Canvas(out_path, pagesize=A4)
     W, H = A4
-    M = 40  # margen
+    M = 40          # Margen izquierdo/derecho
+    MARGIN_BOTTOM = 50  # Margen inferior antes de saltar de página
 
-    # --- Helpers internos ---
-    def draw_logo(path, x, y_top, size=100):
-        p = Path(path)
-        if p.exists():
-            try:
-                c.drawImage(ImageReader(str(p)), x, y_top - size, width=size, height=size, mask="auto")
-            except Exception:
-                pass # Si falla el , no detiene el reporte
+    # --- FUNCIÓN INTERNA: DIBUJAR ENCABEZADO ---
+    # Esta función se llamará cada vez que creemos una página nueva
+    def draw_header(c):
+        y_top = H - M
+        
+        # Función auxiliar para poner logos
+        def draw_logo_header(path, x, y_pos, size=70):
+            p = Path(path)
+            if p.exists():
+                try:
+                    c.drawImage(ImageReader(str(p)), x, y_pos - size, width=size, height=size, mask="auto")
+                except Exception:
+                    pass
 
-    def draw_title_center(text, y, font="Helvetica-Bold", size=12):
-        c.setFont(font, size)
-        c.drawCentredString(W / 2, y, text)
+        # Dibujar Logos
+        draw_logo_header(logo_left_path, M, y_top, 70)
+        draw_logo_header(logo_right_path, W - M - 70, y_top, 70)
 
-    def draw_line(y):
-        c.line(M, y, W - M, y)
+        # Texto del Encabezado
+        c.setFont("Helvetica-Bold", 12)
+        c.drawCentredString(W / 2, y_top - 20, "Universidad Central del Ecuador")
+        c.setFont("Helvetica", 11)
+        c.drawCentredString(W / 2, y_top - 38, "Carrera de Geología")
+        c.setFont("Helvetica-Bold", 12)
+        c.drawCentredString(W / 2, y_top - 58, "GeoSismicIA")
+        c.drawCentredString(W / 2, y_top - 78, titulo_reporte)
 
-    def draw_wrapped_text(x, y, text, max_width_chars=110, line_h=12, font="Helvetica", size=10):
-        c.setFont(font, size)
-        yy = y
-        # Limpieza básica de texto
+        # Línea divisoria
+        c.line(M, y_top - 95, W - M, y_top - 95)
+        
+        # Retorna la posición Y donde empezaremos a escribir contenido
+        return y_top - 115
+
+    # --- FUNCIÓN INTERNA: VERIFICAR ESPACIO (SALTO DE PÁGINA) ---
+    def check_space(c, current_y, needed_space):
+        """
+        Si la posición actual (current_y) menos el espacio necesario es menor al margen,
+        crea una nueva página y reinicia el encabezado.
+        """
+        if current_y - needed_space < MARGIN_BOTTOM:
+            # Pie de página antes de saltar
+            c.setFont("Helvetica-Oblique", 9)
+            c.drawCentredString(W / 2, 25, 'Continúa en la siguiente página...')
+            
+            c.showPage() # <--- AQUÍ SE CREA LA NUEVA HOJA
+            return draw_header(c) # <--- DIBUJA EL ENCABEZADO Y RETORNA LA Y DE ARRIBA
+        return current_y
+
+    # --- FUNCIÓN INTERNA: DIBUJAR TEXTO LARGO ---
+    def draw_smart_text(c, x, y, text, max_chars=100, line_height=12):
+        c.setFont("Helvetica", 10)
         text_safe = str(text) if text else "Sin descripción."
         
+        # Procesar por párrafos
         for paragraph in text_safe.split("\n"):
             paragraph = paragraph.strip()
             if not paragraph:
-                yy -= line_h
+                y -= line_height
+                y = check_space(c, y, line_height) # Chequeo rápido
                 continue
 
+            # Procesar palabra por palabra para ajustar ancho
             words = paragraph.split()
             line = ""
             for w in words:
-                test = (line + " " + w).strip()
-                if len(test) <= max_width_chars:
-                    line = test
+                test_line = (line + " " + w).strip()
+                # Si la línea cabe, seguimos sumando palabras
+                if len(test_line) <= max_chars:
+                    line = test_line
                 else:
-                    c.drawString(x, yy, line)
-                    yy -= line_h
-                    line = w
+                    # Si no cabe, imprimimos la línea actual
+                    y = check_space(c, y, line_height) # ¿Cabe en la hoja?
+                    c.drawString(x, y, line)
+                    y -= line_height
+                    line = w # La palabra que sobró inicia la nueva línea
+            
+            # Imprimir lo que quedó en el buffer 'line'
             if line:
-                c.drawString(x, yy, line)
-                yy -= line_h
-            yy -= 4
-        return yy
+                y = check_space(c, y, line_height)
+                c.drawString(x, y, line)
+                y -= line_height
+            
+            y -= 4 # Espacio extra entre párrafos
+        return y
 
-    def draw_image_fit(path, x, y_top, max_w, max_h):
+    # --- FUNCIÓN INTERNA: DIBUJAR IMAGEN ---
+    def draw_smart_image(c, path, x, y, max_h=200):
         p = Path(path)
         if not p.exists():
-            c.setFont("Helvetica-Oblique", 9)
-            c.drawString(x, y_top - 12, f"[Imagen no disponible: {p.name}]")
-            return y_top - 20
+            c.drawString(x, y, "[Imagen no encontrada]")
+            return y - 20
+        
+        # Verificamos si la imagen cabe completa
+        y = check_space(c, y, max_h + 30)
 
         try:
             img = ImageReader(str(p))
             iw, ih = img.getSize()
+            max_w = W - 2 * M
             scale = min(max_w / iw, max_h / ih)
             nw, nh = iw * scale, ih * scale
-            c.drawImage(img, x + (max_w - nw) / 2, y_top - nh, width=nw, height=nh, mask="auto")
-            return y_top - nh
-        except Exception as e:
-            c.drawString(x, y_top - 12, f"[Error cargando imagen]")
-            return y_top - 20
+            
+            # Dibujamos imagen centrada
+            c.drawImage(img, x + (max_w - nw) / 2, y - nh, width=nw, height=nh, mask="auto")
+            return y - nh
+        except:
+            return y - 20
 
-    # --- Encabezado ---
-    y = H - M
+    # ================= EJECUCIÓN DEL REPORTE =================
     
-    # Dibuja logos si existen
-    draw_logo(logo_left_path, M, y, 70)
-    draw_logo(logo_right_path, W - M - 70, y, 70)
+    # 1. Inicializar primera página
+    y = draw_header(c)
 
-    draw_title_center("Universidad Central del Ecuador", y - 20, "Helvetica-Bold", 12)
-    draw_title_center("Carrera de Geología", y - 38, "Helvetica", 11)
-    draw_title_center("GeoSeismicAI", y - 58, "Helvetica-Bold", 12)
-    draw_title_center(titulo_reporte, y - 78, "Helvetica-Bold", 12)
-
-    # SE ELIMINÓ LA FECHA AQUÍ SEGÚN SOLICITUD
-
-    draw_line(y - 95)
-
-    # --- Contenido ---
-    y = y - 115
-
-    # 1. Imagen Original (Sin modificar)
+    # 2. Imagen Original
+    y = check_space(c, y, 20)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(M, y, "1) Sección sísmica original")
-    y -= 12
-    y = draw_image_fit(img_original_path, M, y, W - 2 * M, 200) - 18
+    y -= 15
+    y = draw_smart_image(c, img_original_path, M, y, max_h=200)
+    y -= 15
 
-    # 2. Imagen Procesada (Interpretación visual)
+    # 3. Imagen Procesada
+    y = check_space(c, y, 20)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(M, y, "2) Interpretación de Sismofacies (IA)")
-    y -= 12
-    y = draw_image_fit(img_resultado_path, M, y, W - 2 * M, 200) - 18
+    y -= 15
+    y = draw_smart_image(c, img_resultado_path, M, y, max_h=200)
+    y -= 15
 
-    # 3. Interpretación (Texto)
+    # 4. Interpretación (Texto) - AQUÍ ES DONDE SUELE OCURRIR EL CORTE
+    y = check_space(c, y, 20)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(M, y, "3) Interpretación Geológica")
-    y -= 14
-    y = draw_wrapped_text(M, y, texto, max_width_chars=100, line_h=12, font="Helvetica", size=10)
+    y -= 15
+    
+    # Llamamos a la función inteligente de texto
+    y = draw_smart_text(c, M, y, texto, max_chars=100, line_height=12)
 
-    # --- Pie ---
+    # Pie de página final
     c.setFont("Helvetica-Oblique", 9)
-    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSeismicAI"')
+    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSismicIA"')
 
     c.showPage()
     c.save()
@@ -152,12 +192,11 @@ def img_to_base64(path):
         return ""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
-import numpy as np
+
 def colorize_mask(mask):
     """
     Convierte una máscara de clases (0–13) a una máscara RGB con 14 colores
     """
-    import numpy as np
     if mask.ndim == 3:
         mask_gray = mask[:, :, 0]
     else:
@@ -192,9 +231,7 @@ def colorize_mask(mask):
 def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
     """
     Crea un overlay respetando EXACTAMENTE los colores de la máscara.
-    alpha controla qué tanto se mezcla con la imagen original.
     """
-
     # Convertir a arrays
     base = np.array(img_original).astype(np.float32)
     mask = np.array(mask_img).astype(np.float32)
@@ -222,7 +259,7 @@ def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
 # --------------------------------------------------
 # 4. CARGA DE LOGOS
 # --------------------------------------------------
-# Rutas a los assets (Asegúrate de subirlos a tu GitHub en la carpeta 'assets')
+# Rutas a los assets
 LOGO_UCE_PATH = "assets/uce.png"
 LOGO_GEO_PATH = "assets/geologia.png"
 
@@ -345,25 +382,22 @@ if archivo is not None:
                         result = response.json()
 
                         # --- EXTRACCIÓN DE DATOS ---
-                        report = result.get("report", {})
-
-                        # 1. Texto del análisis
+                        # Texto: Buscamos 'texto_analisis', 'technical_report', etc.
                         texto_analisis = (
-                            report.get("summary")
-                            or report.get("methodology")
-                            or "Sin análisis."
+                            result.get("texto_analisis")
+                            or result.get("technical_report")
+                            or result.get("text")
+                            or "Sin análisis generado."
                         )
 
-                        # 2. Imagen original (base64 desde n8n)
-                        img_original_b64 = result.get("image_original")
+                        # Imagen Procesada (Máscara)
+                        mask_b64 = (
+                            result.get("imagen_procesada")
+                            or result.get("mask")
+                            or result.get("image") # En caso de que n8n mande 'image'
+                        )
 
-                        # 3. Máscara (base64 desde n8n)
-                        mask_b64 = result.get("mask")
-
-                        # --- LIMPIEZA BASE64 ---
-                        if img_original_b64 and "," in img_original_b64:
-                            img_original_b64 = img_original_b64.split(",")[1]
-
+                        # Limpieza Base64
                         if mask_b64 and "," in mask_b64:
                             mask_b64 = mask_b64.split(",")[1]
 
@@ -378,47 +412,45 @@ if archivo is not None:
 
                         temp_orig_path = "temp_original.png"
                         temp_proc_path = "temp_procesada.png"
-                        pdf_path = "Reporte_GeoSeismicAI.pdf"
+                        pdf_path = "Reporte_GeoSismicAI.pdf"
+
+                        # Guardar imagen original
+                        img_original = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                        img_original.save(temp_orig_path)
 
                         # ===============================
-                        # COLUMNA 1 — IMÁGENES
+                        # COLUMNA 1 — IMÁGENES (OVERLAY)
                         # ===============================
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
 
-                            if img_original_b64:
-                                img_original = Image.open(
-                                    io.BytesIO(base64.b64decode(img_original_b64))
-                                ).convert("RGB")
-                            else:
-                                img_original = Image.open(archivo).convert("RGB")
-
-                            img_original.save(temp_orig_path)
-
                             if mask_b64:
+                                # Decodificar máscara que viene de n8n
                                 mask_img = Image.open(
                                     io.BytesIO(base64.b64decode(mask_b64))
                                 ).convert("RGB")
 
-                                # Convertir máscara de clases a colores
+                                # Convertir máscara de clases a colores (función auxiliar)
                                 mask_array = np.array(mask_img)
                                 mask_colored = colorize_mask(mask_array)
 
-                                # Crear overlay con colores de sismofacies
+                                # Crear overlay
                                 overlay_img = create_overlay_from_mask(
                                      img_original,
-                                     Image.fromarray(mask_colored)
+                                     Image.fromarray(mask_colored),
+                                     alpha=0.6 # Transparencia
                                 )
 
                                 st.image(
                                     overlay_img,
-                                    caption="Segmentación IA (overlay)",
+                                    caption="Segmentación IA (Overlay)",
                                     use_container_width=True
                                 )
 
+                                # Guardamos el overlay para el PDF
                                 overlay_img.save(temp_proc_path)
                             else:
-                                st.warning("No se recibió máscara. Se usa la imagen original.")
+                                st.warning("No se recibió máscara procesada. Se usa la imagen original.")
                                 img_original.save(temp_proc_path)
 
                         # ===============================
@@ -428,7 +460,6 @@ if archivo is not None:
                             st.subheader("Interpretación Geológica")
                             st.info(texto_analisis)
                         
-                        #-----------------------------
                         # --- GENERACIÓN DEL PDF ---
                         build_pdf(
                             out_path=pdf_path,
@@ -439,19 +470,24 @@ if archivo is not None:
                             img_resultado_path=temp_proc_path,
                             texto=texto_analisis
                         )
-                        #---------------------------------------------------------
+                        
+                        # --- BOTÓN DE DESCARGA ---
                         if os.path.exists(pdf_path):
                             with open(pdf_path, "rb") as pdf_file:
                                 st.download_button(
                                     label="📄 Descargar Reporte PDF Oficial",
                                     data=pdf_file.read(),
-                                    file_name="Reporte_GeoSeismicAI.pdf",
+                                    file_name="Reporte_GeoSismicIA.pdf",
                                     mime="application/pdf"
                                 )
 
                     except ValueError:
                         st.warning("El servidor respondió pero el formato no es JSON válido.")
-            except Exception as e: st.error(f"Error procesando resultados: {str(e)}")            
+                    except Exception as e:
+                         st.error(f"Error procesando resultados: {str(e)}")          
+            except Exception as e:
+                st.error(f"Fallo de conexión: {str(e)}")
+
 # --------------------------------------------------
 # 11. PIE DE PÁGINA
 # --------------------------------------------------
