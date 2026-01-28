@@ -153,6 +153,42 @@ def img_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 import numpy as np
+def colorize_mask(mask_gray):
+    """
+    Convierte una máscara de clases (0–13) a una máscara RGB con 14 colores
+    """
+
+    import numpy as np
+    import cv2
+
+    # Asegurar máscara en 2D
+    if len(mask_gray.shape) == 3:
+        mask_gray = cv2.cvtColor(mask_gray, cv2.COLOR_BGR2GRAY)
+
+    colored_mask = np.zeros((*mask_gray.shape, 3), dtype=np.uint8)
+
+    # Diccionario CLASE → COLOR (RGB)
+    class_colors = {
+        0:  (0, 0, 0),         # Fondo
+        1:  (165, 42, 42),     # Caotico_AA_FB_D
+        2:  (0, 0, 255),       # Caotico_AB_FB_D
+        3:  (128, 0, 128),     # Paralelo_contorsionado_AA_FA_D
+        4:  (245, 222, 179),   # Paralelo_contorsionado_AB_FB_C
+        5:  (255, 165, 0),     # Paralelo_AA_FA_C
+        6:  (255, 255, 0),     # Paralelo_AA_FB_C
+        7:  (0, 255, 255),     # Paralelo_AB_FA_C
+        8:  (255, 0, 255),     # Paralelo_AB_FB_C
+        9:  (220, 20, 60),     # Paralelo_AB_FB_D
+        10: (0, 0, 200),       # Subparalelo_AA_FA_C
+        11: (255, 182, 193),   # Subparalelo_AA_FA_D
+        12: (255, 69, 0),      # Subparalelo_AA_FB_D
+        13: (0, 255, 180),     # Subparalelo_AB_FB_D
+    }
+
+    for class_id, color in class_colors.items():
+        colored_mask[mask_gray == class_id] = color
+
+    return colored_mask
 
 def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
     """
@@ -365,9 +401,14 @@ if archivo is not None:
                                     io.BytesIO(base64.b64decode(mask_b64))
                                 ).convert("RGB")
 
+                                # Convertir máscara de clases a colores
+                                mask_array = np.array(mask_img)
+                                mask_colored = colorize_mask(mask_array)
+
+                                # Crear overlay con colores de sismofacies
                                 overlay_img = create_overlay_from_mask(
-                                    img_original,
-                                    mask_img
+                                     img_original,
+                                     Image.fromarray(mask_colored)
                                 )
 
                                 st.image(
