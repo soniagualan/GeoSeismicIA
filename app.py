@@ -285,7 +285,7 @@ with c2:
     st.markdown("""
     <div class="header">
         <h2>Universidad Central del Ecuador</h2>
-        <h3>Facultad de Ingeniería en Geología</h3>
+        <h3>FIGEMPA</h3>
         <h4>Carrera de Geología</h4>
         <h1>GeoSeismicAI</h1>
     </div>
