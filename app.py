@@ -17,7 +17,7 @@ from reportlab.pdfgen import canvas
 # 1. CONFIGURACIÓN GENERAL
 # --------------------------------------------------
 st.set_page_config(
-    page_title="GeoSismicIA – UCE",
+    page_title="GeoSeismicAI – UCE",
     layout="wide"
 )
 
@@ -58,7 +58,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
         c.setFont("Helvetica", 11)
         c.drawCentredString(W / 2, y_top - 38, "Carrera de Geología")
         c.setFont("Helvetica-Bold", 12)
-        c.drawCentredString(W / 2, y_top - 58, "GeoSismicIA")
+        c.drawCentredString(W / 2, y_top - 58, "GeoSeismicAI")
         c.drawCentredString(W / 2, y_top - 78, titulo_reporte)
 
         c.line(M, y_top - 95, W - M, y_top - 95)
@@ -175,7 +175,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
 
     # Pie de página final
     c.setFont("Helvetica-Oblique", 9)
-    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSismicIA"')
+    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSeismicAI"')
 
     c.showPage()
     c.save()
@@ -287,7 +287,7 @@ with c2:
         <h2>Universidad Central del Ecuador</h2>
         <h3>Facultad de Ingeniería en Geología</h3>
         <h4>Carrera de Geología</h4>
-        <h1>GeoSismicIA</h1>
+        <h1>GeoSeismicAI</h1>
     </div>
     """, unsafe_allow_html=True)
 with c3:
@@ -299,7 +299,7 @@ st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 # --------------------------------------------------
 st.markdown("""
 <div class="bloque">
-<b>GeoSismicIA</b> es una herramienta académica para el <b>análisis automático de líneas sísmicas</b>.
+<b>GeoSeismicAI</b> es una herramienta académica para el <b>análisis automático de líneas sísmicas</b>.
 <br><br>
 El sistema procesa la imagen de forma autónoma (N8N + IA Agéntica) y entrega resultados preliminares para apoyo didáctico.
 </div>
@@ -351,7 +351,7 @@ if archivo is not None:
                         col_res1, col_res2 = st.columns([1, 1])
                         temp_orig_path = "temp_original.png"
                         temp_proc_path = "temp_procesada.png"
-                        pdf_path = "Reporte_GeoSismicAI.pdf"
+                        pdf_path = "Reporte_GeoSeismicAI.pdf"
 
                         img_original = Image.open(io.BytesIO(image_bytes)).convert("RGB")
                         img_original.save(temp_orig_path)
@@ -380,7 +380,7 @@ if archivo is not None:
                         if os.path.exists(pdf_path):
                             with open(pdf_path, "rb") as pdf_file:
                                 st.download_button(label="📄 Descargar Reporte PDF Oficial", data=pdf_file.read(),
-                                                   file_name="Reporte_GeoSismicIA.pdf", mime="application/pdf")
+                                                   file_name="Reporte_GeoSeismicAI.pdf", mime="application/pdf")
                     except ValueError: st.warning("El servidor respondió pero el formato no es JSON válido.")
                     except Exception as e: st.error(f"Error procesando resultados: {str(e)}")          
             except Exception as e: st.error(f"Fallo de conexión: {str(e)}")
