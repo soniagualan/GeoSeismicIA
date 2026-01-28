@@ -530,7 +530,6 @@ if archivo is not None:
                                 return y
                                 #----------ENCABEZADO---------
                             y = H - M
-
                             draw_logo(logo_left_path, M, y)
                             draw_logo(logo_right_path, W - M - 60, y)
 
