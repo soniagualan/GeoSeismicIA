@@ -220,7 +220,7 @@ def colorize_mask(mask):
 
     return colored_mask
 
-def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
+def create_overlay_from_mask(img_original, mask_img, alpha=0.4):
     base = np.array(img_original).astype(np.float32)
     mask = np.array(mask_img).astype(np.float32)
     if base.shape != mask.shape:
