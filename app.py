@@ -427,6 +427,7 @@ if archivo is not None:
                         with col_res2:
                             st.subheader("Interpretación Geológica")
                             st.info(texto_analisis)
+                        
 
                         # --- GENERACIÓN DEL PDF ---
                         build_pdf(
