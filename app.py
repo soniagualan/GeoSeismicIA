@@ -458,7 +458,7 @@ if archivo is not None:
                         W, H = A4
                         M = 45
 
-                            clean_text(t):
+                        clean_text(t):
                                 if not t:
                                    return "Sin interpretación geológica."
                                 t = re.sub(r"[#*`]", "", t)
