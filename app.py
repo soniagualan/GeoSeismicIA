@@ -153,19 +153,17 @@ def img_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 import numpy as np
-def colorize_mask(mask_gray):
+def colorize_mask(mask):
     """
     Convierte una máscara de clases (0–13) a una máscara RGB con 14 colores
     """
-
     import numpy as np
-    import cv2
+    if mask.ndim == 3:
+        mask_gray = mask[:, :, 0]
+    else:
+        mask_gray = mask
 
-    # Asegurar máscara en 2D
-    if len(mask_gray.shape) == 3:
-        mask_gray = cv2.cvtColor(mask_gray, cv2.COLOR_BGR2GRAY)
-
-    colored_mask = np.zeros((*mask_gray.shape, 3), dtype=np.uint8)
+    colored_mask = np.zeros((mask_gray.shape[0], mask_gray.shape[1], 3), dtype=np.uint8)
 
     # Diccionario CLASE → COLOR (RGB)
     class_colors = {
