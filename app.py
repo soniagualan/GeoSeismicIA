@@ -444,7 +444,7 @@ if archivo is not None:
                             img_original_path=temp_orig_path,
                             img_resultado_path=temp_proc_path,
                             texto=texto_analisis
-                        ):
+                        )
                             import re
                             from pathlib import Path
                             from reportlab.lib.pagesizes import A4
