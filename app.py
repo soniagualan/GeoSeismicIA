@@ -267,7 +267,7 @@ body { font-family: Arial; }
 c1, c2, c3 = st.columns([1, 6, 1])
 
 with c1:
-    if geo_b64:
+    if uce_b64:
         st.markdown(f"<img src='data:image/jpg;base64,{geo_b64}' width='200'>", unsafe_allow_html=True)
 
 with c2:
@@ -281,7 +281,7 @@ with c2:
     """, unsafe_allow_html=True)
 
 with c3:
-    if uce_b64:
+    if geo_b64:
         st.markdown(f"<img src='data:image/jpg;base64,{uce_b64}' width='200' style='float:right'>", unsafe_allow_html=True)
 
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
