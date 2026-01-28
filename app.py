@@ -430,8 +430,6 @@ if archivo is not None:
                         
 
                         # --- GENERACIÓN DEL PDF ---
-                        if os.path.exists(pdf_path):
-                           os.remove(pdf_path)
                         def build_pdf(
                             out_path=pdf_path,
                             logo_left_path=LOGO_UCE_PATH,
