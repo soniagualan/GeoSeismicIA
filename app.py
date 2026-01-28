@@ -139,7 +139,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
 
     # --- Pie ---
     c.setFont("Helvetica-Oblique", 9)
-    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSismicIA" - Tesis UCE')
+    c.drawCentredString(W / 2, 25, 'Procesado con "GeoSeismicAI"')
 
     c.showPage()
     c.save()
@@ -378,7 +378,7 @@ if archivo is not None:
 
                         temp_orig_path = "temp_original.png"
                         temp_proc_path = "temp_procesada.png"
-                        pdf_path = "Reporte_GeoSismicIA.pdf"
+                        pdf_path = "Reporte_GeoSeismicAI.pdf"
 
                         # ===============================
                         # COLUMNA 1 — IMÁGENES
@@ -445,7 +445,7 @@ if archivo is not None:
                                 st.download_button(
                                     label="📄 Descargar Reporte PDF Oficial",
                                     data=pdf_file.read(),
-                                    file_name="Reporte_GeoSismicIA.pdf",
+                                    file_name="Reporte_GeoSeismicAI.pdf",
                                     mime="application/pdf"
                                 )
 
