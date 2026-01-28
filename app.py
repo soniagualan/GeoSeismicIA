@@ -239,7 +239,7 @@ def colorize_mask(mask):
 
     return colored_mask
 
-def create_overlay_from_mask(img_original, mask_img, alpha=0.4):
+def create_overlay_from_mask(img_original, mask_img, alpha=0.3):
     base = np.array(img_original).astype(np.float32)
     mask = np.array(mask_img).astype(np.float32)
     if base.shape != mask.shape:
@@ -371,7 +371,7 @@ if archivo is not None:
                                 mask_img = Image.open(io.BytesIO(base64.b64decode(mask_b64))).convert("RGB")
                                 mask_array = np.array(mask_img)
                                 mask_colored = colorize_mask(mask_array)
-                                overlay_img = create_overlay_from_mask(img_original, Image.fromarray(mask_colored), alpha=0.4)
+                                overlay_img = create_overlay_from_mask(img_original, Image.fromarray(mask_colored), alpha=0.3)
                                 st.image(overlay_img, caption="Segmentación IA (Overlay)", use_container_width=True)
                                 overlay_img.save(temp_proc_path)
                             else:
