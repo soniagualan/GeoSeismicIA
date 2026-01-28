@@ -454,9 +454,9 @@ if archivo is not None:
                         out_path = str(out_path)
                         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
-                            c = canvas.Canvas(out_path, pagesize=A4)
-                            W, H = A4
-                            M = 45
+                        c = canvas.Canvas(out_path, pagesize=A4)
+                        W, H = A4
+                        M = 45
 
                             clean_text(t):
                                 if not t:
