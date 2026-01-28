@@ -464,9 +464,9 @@ if archivo is not None:
                                 t = re.sub(r"[#*`]", "", t)
                                 return t.strip()
 
-                            texto = clean_text(texto)
+                        texto = clean_text(texto)
 
-                            draw_logo(path, x, y, size=60):
+                        def draw_logo(path, x, y, size=60):
                                 p = Path(path)
                                 if p.exists():
                                    c.drawImage(
@@ -478,11 +478,11 @@ if archivo is not None:
                                        mask="auto"
                                    )
 
-                            draw_center(text, y, size=12, bold=False):
+                        def draw_center(text, y, size=12, bold=False):
                                 c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
                                 c.drawCentredString(W / 2, y, text)
 
-                            draw_image(path, x, y, max_w, max_h):
+                        def draw_image(path, x, y, max_w, max_h):
                                 p = Path(path)
                                 if not p.exists():
                                    c.setFont("Helvetica-Oblique", 9)
@@ -504,7 +504,7 @@ if archivo is not None:
                                 )
                                 return y - nh
 
-                            draw_text_block(x, y, text, max_chars=95):
+                        def draw_text_block(x, y, text, max_chars=95):
                                 c.setFont("Helvetica", 10)
                                 line_h = 13
 
