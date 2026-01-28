@@ -529,24 +529,24 @@ if archivo is not None:
 
                                 return y
                                 #----------ENCABEZADO---------
-                            y=H-M
-                            draw_logo(logo_left_path, M, y)
-                            draw_logo(logo_right_path, W - M - 60, y)
+                                y= H - M
+                                draw_logo(logo_left_path, M, y)
+                                draw_logo(logo_right_path, W - M - 60, y)
 
-                            draw_center("Universidad Central del Ecuador", y - 10, 12, True)
-                            draw_center("Carrera de Geología", y - 28, 11)
-                            draw_center("GeoSismicIA", y - 46, 12, True)
-                            draw_center(titulo_reporte, y - 64, 12, True)
+                                draw_center("Universidad Central del Ecuador", y - 10, 12, True)
+                                draw_center("Carrera de Geología", y - 28, 11)
+                                draw_center("GeoSismicIA", y - 46, 12, True)
+                                draw_center(titulo_reporte, y - 64, 12, True)
 
-                            c.line(M, y - 80, W - M, y - 80)
-                            y -= 100
+                                c.line(M, y - 80, W - M, y - 80)
+                                y -= 100
                             #---------IMAGENES----------
-                            c.setFont("Helvetica-Bold", 11)
-                            c.drawString(M, y, "1) Sección sísmica original")
-                            c.drawString(W / 2 + 10, y, "2) Interpretación de Sismofacies (IA)")
-                            y -= 10
+                                c.setFont("Helvetica-Bold", 11)
+                                c.drawString(M, y, "1) Sección sísmica original")
+                                c.drawString(W / 2 + 10, y, "2) Interpretación de Sismofacies (IA)")
+                                y -= 10
 
-                            img_height = 220
+                                img_height = 220
 
                             y_left = draw_image(
                                 img_original_path,
@@ -576,7 +576,7 @@ if archivo is not None:
                             c.drawCentredString(
                                 W / 2,
                                 30,
-                                'Procesado con "GeoSismicIA" - Tesis UCE'
+                                'Procesado con "GeoSeismicIA"'
                             )
 
                             c.showPage()
