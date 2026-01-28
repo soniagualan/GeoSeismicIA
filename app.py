@@ -430,14 +430,16 @@ if archivo is not None:
                         
 
                         # --- GENERACIÓN DEL PDF ---
+                        if os.path.exists(pdf_path):
+                           os.remove(pdf_path)
                         def build_pdf(
-                            out_path,
-                            logo_left_path,
-                            logo_right_path,
-                            titulo_reporte,
-                            img_original_path,
-                            img_resultado_path,
-                            texto
+                            out_path=pdf_path,
+                            logo_left_path=LOGO_UCE_PATH,
+                            logo_right_path=LOGO_GEO_PATH,
+                            titulo_reporte="Análisis de Sismofacies",
+                            img_original_path=temp_orig_path,
+                            img_resultado_path=temp_proc_path,
+                            texto=texto_analisis
                         ):
                             import re
                             from pathlib import Path
