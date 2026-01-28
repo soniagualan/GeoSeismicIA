@@ -39,7 +39,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
     M = 40  # margen
 
     # --- Helpers internos ---
-    def draw_logo(path, x, y_top, size=70):
+    def draw_logo(path, x, y_top, size=100):
         p = Path(path)
         if p.exists():
             try:
