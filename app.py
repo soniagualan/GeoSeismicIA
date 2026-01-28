@@ -445,20 +445,20 @@ if archivo is not None:
                             img_resultado_path=temp_proc_path,
                             texto=texto_analisis
                         )
-                            import re
-                            from pathlib import Path
-                            from reportlab.lib.pagesizes import A4
-                            from reportlab.lib.utils import ImageReader
-                            from reportlab.pdfgen import canvas
+                        import re
+                        from pathlib import Path
+                        from reportlab.lib.pagesizes import A4
+                        from reportlab.lib.utils import ImageReader
+                        from reportlab.pdfgen import canvas
 
-                            out_path = str(out_path)
-                            Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+                        out_path = str(out_path)
+                        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
                             c = canvas.Canvas(out_path, pagesize=A4)
                             W, H = A4
                             M = 45
 
-                            def clean_text(t):
+                            clean_text(t):
                                 if not t:
                                    return "Sin interpretación geológica."
                                 t = re.sub(r"[#*`]", "", t)
@@ -466,7 +466,7 @@ if archivo is not None:
 
                             texto = clean_text(texto)
 
-                            def draw_logo(path, x, y, size=60):
+                            draw_logo(path, x, y, size=60):
                                 p = Path(path)
                                 if p.exists():
                                    c.drawImage(
@@ -478,11 +478,11 @@ if archivo is not None:
                                        mask="auto"
                                    )
 
-                            def draw_center(text, y, size=12, bold=False):
+                            draw_center(text, y, size=12, bold=False):
                                 c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
                                 c.drawCentredString(W / 2, y, text)
 
-                            def draw_image(path, x, y, max_w, max_h):
+                            draw_image(path, x, y, max_w, max_h):
                                 p = Path(path)
                                 if not p.exists():
                                    c.setFont("Helvetica-Oblique", 9)
@@ -504,7 +504,7 @@ if archivo is not None:
                                 )
                                 return y - nh
 
-                            def draw_text_block(x, y, text, max_chars=95):
+                            draw_text_block(x, y, text, max_chars=95):
                                 c.setFont("Helvetica", 10)
                                 line_h = 13
 
