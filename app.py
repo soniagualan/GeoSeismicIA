@@ -181,6 +181,7 @@ def colorize_mask(mask):
         11: (255, 182, 193),   # Subparalelo_AA_FA_D
         12: (255, 69, 0),      # Subparalelo_AA_FB_D
         13: (0, 255, 180),     # Subparalelo_AB_FB_D
+        14: (34, 139, 34),     # Subparalelo_AB_FA_D
     }
 
     for class_id, color in class_colors.items():
