@@ -45,7 +45,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
             try:
                 c.drawImage(ImageReader(str(p)), x, y_top - size, width=size, height=size, mask="auto")
             except Exception:
-                pass # Si falla el logo, no detiene el reporte
+                pass # Si falla el , no detiene el reporte
 
     def draw_title_center(text, y, font="Helvetica-Bold", size=12):
         c.setFont(font, size)
@@ -223,8 +223,8 @@ def create_overlay_from_mask(img_original, mask_img, alpha=0.6):
 # 4. CARGA DE LOGOS
 # --------------------------------------------------
 # Rutas a los assets (Asegúrate de subirlos a tu GitHub en la carpeta 'assets')
-LOGO_UCE_PATH = "assets/uce.jpg"
-LOGO_GEO_PATH = "assets/geologia.jpg"
+LOGO_UCE_PATH = "assets/uce.png"
+LOGO_GEO_PATH = "assets/geologia.png"
 
 uce_b64 = img_to_base64(LOGO_UCE_PATH)
 geo_b64 = img_to_base64(LOGO_GEO_PATH)
