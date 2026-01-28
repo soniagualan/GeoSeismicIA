@@ -5,6 +5,7 @@ import requests
 import os
 import io
 import numpy as np
+import re  # IMPORTANTE: Para detectar los asteriscos ** y #
 from pathlib import Path
 from datetime import datetime
 
@@ -25,11 +26,11 @@ st.set_page_config(
 BACKEND_ENDPOINT = "https://soniagualan.app.n8n.cloud/webhook-test/seismic-upload"
 
 # --------------------------------------------------
-# 2. FUNCIONES DE GENERACIÓN DE PDF (MODIFICADO: IMÁGENES HORIZONTALES)
+# 2. FUNCIONES DE GENERACIÓN DE PDF
 # --------------------------------------------------
 def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_original_path, img_resultado_path, texto):
     """
-    Genera un PDF multipágina con imágenes dispuestas horizontalmente.
+    Genera un PDF multipágina interpretando Markdown básico (# Títulos y **Negritas**).
     """
     out_path = str(out_path)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -73,36 +74,7 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
             return draw_header(c)
         return current_y
 
-    # --- HELPER: DIBUJAR TEXTO LARGO ---
-    def draw_smart_text(c, x, y, text, max_chars=100, line_height=12):
-        c.setFont("Helvetica", 10)
-        text_safe = str(text) if text else "Sin descripción."
-        for paragraph in text_safe.split("\n"):
-            paragraph = paragraph.strip()
-            if not paragraph:
-                y -= line_height
-                y = check_space(c, y, line_height)
-                continue
-            words = paragraph.split()
-            line = ""
-            for w in words:
-                test_line = (line + " " + w).strip()
-                if len(test_line) <= max_chars:
-                    line = test_line
-                else:
-                    y = check_space(c, y, line_height)
-                    c.drawString(x, y, line)
-                    y -= line_height
-                    line = w
-            if line:
-                y = check_space(c, y, line_height)
-                c.drawString(x, y, line)
-                y -= line_height
-            y -= 4
-        return y
-
-    # --- NUEVO HELPER: DIBUJAR IMAGEN EN UNA CAJA ESPECÍFICA ---
-    # Este helper coloca la imagen en una posición X dada, ajustándola a un ancho/alto máximo
+    # --- HELPER: DIBUJAR IMAGEN HORIZONTAL ---
     def draw_image_side_by_side(c, path, x_pos, y_top, box_width, box_height):
         p = Path(path)
         if not p.exists():
@@ -113,67 +85,114 @@ def build_pdf(out_path, logo_left_path, logo_right_path, titulo_reporte, img_ori
         try:
             img = ImageReader(str(p))
             iw, ih = img.getSize()
-            # Calcular escala para que quepa en la caja
             scale = min(box_width / iw, box_height / ih)
             nw, nh = iw * scale, ih * scale
-            
-            # Centrar horizontalmente dentro de su caja
             x_centered = x_pos + (box_width - nw) / 2
-            
-            # Dibujar imagen
             c.drawImage(img, x_centered, y_top - nh, width=nw, height=nh, mask="auto")
-            
-            # Retornar la posición Y inferior real de esta imagen
             return y_top - nh
         except:
             return y_top - 20
 
+    # --- NUEVO HELPER: DIBUJAR TEXTO CON MARKDOWN (AJUSTADO) ---
+    def draw_markdown_text(c, x_start, y_start, full_text, max_width, line_height=14):
+        y = y_start
+        
+        lines = full_text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                y -= line_height * 0.5 
+                continue
+
+            # --- CASO A: ES UN TÍTULO (#) ---
+            if line.startswith('#'):
+                clean_line = line.replace('#', '').strip()
+                
+                # CORRECCIÓN: Tamaño 11 (Menor que el título principal de sección)
+                c.setFont("Helvetica-Bold", 11) 
+                
+                y = check_space(c, y, line_height * 1.5)
+                c.drawString(x_start, y, clean_line)
+                y -= line_height * 1.5 
+                continue
+
+            # --- CASO B: TEXTO NORMAL ---
+            c.setFont("Helvetica", 10) # Tamaño base
+            
+            parts = re.split(r'(\*\*.*?\*\*)', line)
+            current_x = x_start
+            
+            for part in parts:
+                if not part: continue
+                
+                is_bold = part.startswith('**') and part.endswith('**')
+                text_content = part.replace('**', '') 
+                
+                if is_bold:
+                    c.setFont("Helvetica-Bold", 10) # Negrita mismo tamaño
+                else:
+                    c.setFont("Helvetica", 10)
+                
+                words = text_content.split(' ')
+                
+                for i, word in enumerate(words):
+                    word_to_draw = word + " " if i < len(words) - 1 else word
+                    if not word_to_draw: continue
+
+                    word_width = c.stringWidth(word_to_draw)
+                    
+                    if (current_x + word_width) > (x_start + max_width):
+                        y -= line_height
+                        y = check_space(c, y, line_height)
+                        current_x = x_start
+                        if is_bold: c.setFont("Helvetica-Bold", 10)
+                        else: c.setFont("Helvetica", 10)
+
+                    c.drawString(current_x, y, word_to_draw)
+                    current_x += word_width
+            
+            y -= line_height
+            y = check_space(c, y, line_height)
+
+        return y
+
     # ================= EJECUCIÓN DEL REPORTE =================
     
-    # 1. Inicializar primera página
     y = draw_header(c)
 
-    # --- SECCIÓN DE IMÁGENES HORIZONTALES ---
-    
-    # Configuración de dimensiones
-    GAP = 20 # Espacio entre las dos imágenes
+    # --- SECCIÓN DE IMÁGENES ---
+    GAP = 20 
     available_width = W - 2 * M
-    img_box_width = (available_width - GAP) / 2 # Ancho para cada imagen
-    max_img_height = 180 # Altura máxima permitida
+    img_box_width = (available_width - GAP) / 2 
+    max_img_height = 180 
 
-    # Verificar espacio para todo el bloque (título + imágenes)
     y = check_space(c, y, 30 + max_img_height)
 
-    # Título unificado
-    c.setFont("Helvetica-Bold", 11)
+    # Título Sección 1 (Tamaño 12)
+    c.setFont("Helvetica-Bold", 12)
     c.drawString(M, y, "1) Análisis Visual: Sección Original (Izq.) vs. Interpretación (Der.)")
-    y -= 20 # Bajar Y para empezar a dibujar imágenes
+    y -= 20 
 
-    # Coordenadas X para izquierda y derecha
     x_left = M
     x_right = M + img_box_width + GAP
 
-    # Dibujar Imagen Izquierda (Original) y obtener su Y inferior
     y_bottom1 = draw_image_side_by_side(c, img_original_path, x_left, y, img_box_width, max_img_height)
-
-    # Dibujar Imagen Derecha (Procesada) y obtener su Y inferior
     y_bottom2 = draw_image_side_by_side(c, img_resultado_path, x_right, y, img_box_width, max_img_height)
 
-    # El nuevo Y será el punto más bajo de las dos imágenes más un margen
     y = min(y_bottom1, y_bottom2) - 25
 
-
     # --- SECCIÓN DE TEXTO ---
-    # 2. Interpretación (Texto)
     y = check_space(c, y, 20)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(M, y, "2) Interpretación Geológica")
-    y -= 15
     
-    # Llamamos a la función inteligente de texto
-    y = draw_smart_text(c, M, y, texto, max_chars=100, line_height=12)
+    # CORRECCIÓN: Título Sección 2 (Tamaño 12 - El más grande)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(M, y, "2) Interpretación Geológica")
+    y -= 20
+    
+    text_safe = str(texto) if texto else "Sin descripción."
+    y = draw_markdown_text(c, M, y, text_safe, max_width=available_width, line_height=14)
 
-    # Pie de página final
     c.setFont("Helvetica-Oblique", 9)
     c.drawCentredString(W / 2, 25, 'Procesado con "GeoSeismicAI"')
 
@@ -198,21 +217,21 @@ def colorize_mask(mask):
     colored_mask = np.zeros((mask_gray.shape[0], mask_gray.shape[1], 3), dtype=np.uint8)
 
     class_colors = {
-        0:  (0, 0, 0),         # Fondo
-        1:  (165, 42, 42),     # Caotico_AA_FB_D
-        2:  (0, 0, 255),       # Caotico_AB_FB_D
-        3:  (128, 0, 128),     # Paralelo_contorsionado_AA_FA_D
-        4:  (245, 222, 179),   # Paralelo_contorsionado_AB_FB_C
-        5:  (255, 165, 0),     # Paralelo_AA_FA_C
-        6:  (255, 255, 0),     # Paralelo_AA_FB_C
-        7:  (0, 255, 255),     # Paralelo_AB_FA_C
-        8:  (255, 0, 255),     # Paralelo_AB_FB_C
-        9:  (220, 20, 60),     # Paralelo_AB_FB_D
-        10: (0, 0, 200),       # Subparalelo_AA_FA_C
-        11: (255, 182, 193),   # Subparalelo_AA_FA_D
-        12: (255, 69, 0),      # Subparalelo_AA_FB_D
-        13: (0, 255, 180),     # Subparalelo_AB_FB_D
-        14: (34, 139, 34),     # Subparalelo_AB_FA_D
+        0:  (0, 0, 0),         
+        1:  (165, 42, 42),     
+        2:  (0, 0, 255),       
+        3:  (128, 0, 128),     
+        4:  (245, 222, 179),   
+        5:  (255, 165, 0),     
+        6:  (255, 255, 0),     
+        7:  (0, 255, 255),     
+        8:  (255, 0, 255),     
+        9:  (220, 20, 60),     
+        10: (0, 0, 200),       
+        11: (255, 182, 193),   
+        12: (255, 69, 0),      
+        13: (0, 255, 180),     
+        14: (34, 139, 34),     
     }
 
     for class_id, color in class_colors.items():
@@ -236,16 +255,13 @@ def create_overlay_from_mask(img_original, mask_img, alpha=0.4):
     return Image.fromarray(overlay)
 
 # --------------------------------------------------
-# 4. CARGA DE LOGOS
+# 4. CARGA DE LOGOS Y ESTILOS
 # --------------------------------------------------
 LOGO_UCE_PATH = "assets/uce.png"
 LOGO_GEO_PATH = "assets/geologia.png"
 uce_b64 = img_to_base64(LOGO_UCE_PATH)
 geo_b64 = img_to_base64(LOGO_GEO_PATH)
 
-# --------------------------------------------------
-# 5. ESTILOS CSS
-# --------------------------------------------------
 st.markdown("""
 <style>
 body { font-family: Arial; }
@@ -276,7 +292,7 @@ body { font-family: Arial; }
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# 6. ENCABEZADO INSTITUCIONAL
+# 5. UI PRINCIPAL
 # --------------------------------------------------
 c1, c2, c3 = st.columns([1, 6, 1])
 with c1:
@@ -294,9 +310,6 @@ with c3:
     if geo_b64: st.markdown(f"<img src='data:image/jpg;base64,{geo_b64}' width='200' style='float:right'>", unsafe_allow_html=True)
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 
-# --------------------------------------------------
-# 7. DESCRIPCIÓN
-# --------------------------------------------------
 st.markdown("""
 <div class="bloque">
 <b>GeoSeismicAI</b> es una herramienta académica para el <b>análisis automático de líneas sísmicas</b>.
@@ -305,24 +318,18 @@ El sistema procesa la imagen de forma autónoma (N8N + IA Agéntica) y entrega r
 </div>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------
-# 8. INPUT DE USUARIO
-# --------------------------------------------------
 st.markdown("<div class='titulo_azul'>Carga de línea sísmica</div>", unsafe_allow_html=True)
 st.markdown("<div class='bloque'>", unsafe_allow_html=True)
 archivo = st.file_uploader("Selecciona una línea sísmica (PNG / JPG)", type=["png", "jpg", "jpeg"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --------------------------------------------------
-# 9. VISTA PREVIA
-# --------------------------------------------------
 if archivo is not None:
     img = Image.open(archivo).convert("RGB")
     st.subheader("Vista previa de la línea sísmica")
     st.image(img, use_container_width=True)
 
 # --------------------------------------------------
-# 10. LÓGICA DE ENVÍO, PROCESAMIENTO Y REPORTE
+# 6. LÓGICA DE PROCESAMIENTO
 # --------------------------------------------------
 if archivo is not None:
     if st.button("Analizar línea sísmica"):
@@ -341,7 +348,9 @@ if archivo is not None:
                     st.success("Análisis completado exitosamente.")
                     try: 
                         result = response.json()
-                        texto_analisis = (result.get("texto_analisis") or result.get("technical_report") or result.get("text") or "Sin análisis generado.")
+                        texto_analisis = (result.get("texto_analisis") or result.get("technical_report") or result.get("report", {}).get("summary") or "Sin análisis generado.")
+                        
+                        # Extraer imagen/máscara
                         mask_b64 = (result.get("imagen_procesada") or result.get("mask") or result.get("image"))
                         if mask_b64 and "," in mask_b64: mask_b64 = mask_b64.split(",")[1]
 
@@ -373,6 +382,7 @@ if archivo is not None:
                             st.subheader("Interpretación Geológica")
                             st.info(texto_analisis)
                         
+                        # GENERAR PDF
                         build_pdf(out_path=pdf_path, logo_left_path=LOGO_UCE_PATH, logo_right_path=LOGO_GEO_PATH,
                                   titulo_reporte="Análisis de Sismofacies", img_original_path=temp_orig_path,
                                   img_resultado_path=temp_proc_path, texto=texto_analisis)
@@ -381,13 +391,10 @@ if archivo is not None:
                             with open(pdf_path, "rb") as pdf_file:
                                 st.download_button(label="📄 Descargar Reporte PDF Oficial", data=pdf_file.read(),
                                                    file_name="Reporte_GeoSeismicAI.pdf", mime="application/pdf")
-                    except ValueError: st.warning("El servidor respondió pero el formato no es JSON válido.")
                     except Exception as e: st.error(f"Error procesando resultados: {str(e)}")          
             except Exception as e: st.error(f"Fallo de conexión: {str(e)}")
 
-# --------------------------------------------------
-# 11. PIE DE PÁGINA
-# --------------------------------------------------
+# PIE DE PÁGINA
 st.markdown("<div class='linea'></div>", unsafe_allow_html=True)
 st.markdown("""
 <div class="bloque">
