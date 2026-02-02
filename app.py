@@ -373,7 +373,6 @@ if archivo is not None:
                         
                         # Variables para guardar las imágenes finales
                         final_overlay = None
-                        final_mask_colored = None
 
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
@@ -381,12 +380,12 @@ if archivo is not None:
                                 mask_img = Image.open(io.BytesIO(base64.b64decode(mask_b64))).convert("RGB")
                                 mask_array = np.array(mask_img)
                                 
-                                # 1. Generar Máscara de Color Sola
+                                # 1. Generar Máscara de Color (Solo interna, no se descarga)
                                 mask_colored_array = colorize_mask(mask_array)
-                                final_mask_colored = Image.fromarray(mask_colored_array)
+                                final_mask_colored_internal = Image.fromarray(mask_colored_array)
                                 
                                 # 2. Generar Overlay (Superposición)
-                                final_overlay = create_overlay_from_mask(img_original, final_mask_colored, alpha=0.3)
+                                final_overlay = create_overlay_from_mask(img_original, final_mask_colored_internal, alpha=0.3)
                                 
                                 # Mostrar en pantalla
                                 st.image(final_overlay, caption="Segmentación IA (Overlay)", use_container_width=True)
@@ -394,23 +393,14 @@ if archivo is not None:
                                 # Guardar temporalmente para PDF
                                 final_overlay.save(temp_proc_path)
                                 
-                                # --- BOTONES DE DESCARGA DE IMÁGENES ---
-                                st.markdown("##### Descargar Imágenes:")
-                                col_dl1, col_dl2 = st.columns(2)
-                                with col_dl1:
-                                    st.download_button(
-                                        label="⬇️ Overlay (PNG)",
-                                        data=convert_image_to_bytes(final_overlay),
-                                        file_name="GeoSeismic_Overlay.png",
-                                        mime="image/png"
-                                    )
-                                with col_dl2:
-                                    st.download_button(
-                                        label="⬇️ Máscara (PNG)",
-                                        data=convert_image_to_bytes(final_mask_colored),
-                                        file_name="GeoSeismic_Mask.png",
-                                        mime="image/png"
-                                    )
+                                # --- BOTÓN DE DESCARGA: "Imagen interpretada" ---
+                                st.download_button(
+                                    label="Imagen interpretada", # CAMBIO SOLICITADO
+                                    data=convert_image_to_bytes(final_overlay),
+                                    file_name="GeoSeismic_Interpretada.png",
+                                    mime="image/png",
+                                    use_container_width=True
+                                )
                             else:
                                 st.warning("No se recibió máscara procesada. Se usa la imagen original.")
                                 img_original.save(temp_proc_path)
