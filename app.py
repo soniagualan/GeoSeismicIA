@@ -208,6 +208,12 @@ def img_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+def convert_image_to_bytes(img, format="PNG"):
+    """Convierte una imagen PIL a bytes para descarga."""
+    buf = io.BytesIO()
+    img.save(buf, format=format)
+    return buf.getvalue()
+
 def colorize_mask(mask):
     if mask.ndim == 3:
         mask_gray = mask[:, :, 0]
@@ -364,16 +370,47 @@ if archivo is not None:
 
                         img_original = Image.open(io.BytesIO(image_bytes)).convert("RGB")
                         img_original.save(temp_orig_path)
+                        
+                        # Variables para guardar las imágenes finales
+                        final_overlay = None
+                        final_mask_colored = None
 
                         with col_res1:
                             st.subheader("Mapa de Sismofacies")
                             if mask_b64:
                                 mask_img = Image.open(io.BytesIO(base64.b64decode(mask_b64))).convert("RGB")
                                 mask_array = np.array(mask_img)
-                                mask_colored = colorize_mask(mask_array)
-                                overlay_img = create_overlay_from_mask(img_original, Image.fromarray(mask_colored), alpha=0.3)
-                                st.image(overlay_img, caption="Segmentación IA (Overlay)", use_container_width=True)
-                                overlay_img.save(temp_proc_path)
+                                
+                                # 1. Generar Máscara de Color Sola
+                                mask_colored_array = colorize_mask(mask_array)
+                                final_mask_colored = Image.fromarray(mask_colored_array)
+                                
+                                # 2. Generar Overlay (Superposición)
+                                final_overlay = create_overlay_from_mask(img_original, final_mask_colored, alpha=0.3)
+                                
+                                # Mostrar en pantalla
+                                st.image(final_overlay, caption="Segmentación IA (Overlay)", use_container_width=True)
+                                
+                                # Guardar temporalmente para PDF
+                                final_overlay.save(temp_proc_path)
+                                
+                                # --- BOTONES DE DESCARGA DE IMÁGENES ---
+                                st.markdown("##### Descargar Imágenes:")
+                                col_dl1, col_dl2 = st.columns(2)
+                                with col_dl1:
+                                    st.download_button(
+                                        label="⬇️ Overlay (PNG)",
+                                        data=convert_image_to_bytes(final_overlay),
+                                        file_name="GeoSeismic_Overlay.png",
+                                        mime="image/png"
+                                    )
+                                with col_dl2:
+                                    st.download_button(
+                                        label="⬇️ Máscara (PNG)",
+                                        data=convert_image_to_bytes(final_mask_colored),
+                                        file_name="GeoSeismic_Mask.png",
+                                        mime="image/png"
+                                    )
                             else:
                                 st.warning("No se recibió máscara procesada. Se usa la imagen original.")
                                 img_original.save(temp_proc_path)
@@ -387,10 +424,15 @@ if archivo is not None:
                                   titulo_reporte="Análisis de Sismofacies", img_original_path=temp_orig_path,
                                   img_resultado_path=temp_proc_path, texto=texto_analisis)
                         
+                        st.divider() # Línea visual
+                        
+                        # BOTÓN DE DESCARGA PDF AL FINAL
                         if os.path.exists(pdf_path):
                             with open(pdf_path, "rb") as pdf_file:
-                                st.download_button(label="📄 Descargar Reporte PDF Oficial", data=pdf_file.read(),
-                                                   file_name="Reporte_GeoSeismicAI.pdf", mime="application/pdf")
+                                st.download_button(label="📄 DESCARGAR REPORTE COMPLETO (PDF)", data=pdf_file.read(),
+                                                   file_name="Reporte_GeoSeismicAI.pdf", mime="application/pdf",
+                                                   use_container_width=True) # Botón ancho
+                                                   
                     except Exception as e: st.error(f"Error procesando resultados: {str(e)}")          
             except Exception as e: st.error(f"Fallo de conexión: {str(e)}")
 
